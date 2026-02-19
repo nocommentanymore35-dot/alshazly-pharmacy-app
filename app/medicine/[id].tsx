@@ -196,7 +196,7 @@ export default function MedicineDetailScreen() {
         </ScrollView>
 
         {/* Bottom Action Bar */}
-        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 56 }]}>
           {/* Quantity Selector with unit label */}
           <View style={styles.quantitySection}>
             <View style={styles.quantityContainer}>
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   descTextEn: { fontSize: 14, color: "#4B5563", lineHeight: 22, textAlign: "left" },
   bottomBar: {
     paddingHorizontal: 16, paddingTop: 12,
-    paddingBottom: 24,
+    paddingBottom: 32,
     borderTopWidth: 1, borderTopColor: "#E5E7EB", backgroundColor: "#fff",
     gap: 10,
   },
