@@ -2,7 +2,7 @@ import { Text, View, FlatList, Alert, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
-import { useAppStore, CartItem } from "@/lib/store";
+import { useAppStore, CartItem, calcItemTotal, getUnitLabel, getPricePerUnit } from "@/lib/store";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
@@ -37,34 +37,46 @@ export default function CartScreen() {
     router.push("/checkout" as any);
   };
 
-  const renderCartItem = ({ item }: { item: CartItem }) => (
-    <View style={styles.cartItem}>
-      {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.itemImage} contentFit="cover" />
-      ) : (
-        <View style={[styles.itemImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
-          <MaterialIcons name="medication" size={30} color="#2563EB" />
+  const renderCartItem = ({ item }: { item: CartItem }) => {
+    const unitType = item.unitType || "box";
+    const stripsPerBox = item.stripsPerBox || 1;
+    const unitPrice = getPricePerUnit(item.price, stripsPerBox, unitType);
+    const itemTotal = calcItemTotal(item);
+    const unitLabel = getUnitLabel(unitType, item.quantity);
+
+    return (
+      <View style={styles.cartItem}>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.itemImage} contentFit="cover" />
+        ) : (
+          <View style={[styles.itemImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
+            <MaterialIcons name="medication" size={30} color="#2563EB" />
+          </View>
+        )}
+        <View style={styles.itemInfo}>
+          <Text style={styles.itemName} numberOfLines={1}>{item.nameAr}</Text>
+          <Text style={styles.itemNameEn} numberOfLines={1}>{item.nameEn}</Text>
+          <View style={styles.itemDetails}>
+            <Text style={styles.itemPrice}>{unitPrice.toFixed(2)} ج.م / {unitType === "strip" ? "شريط" : "علبة"}</Text>
+          </View>
+          <View style={styles.itemQtyRow}>
+            <View style={styles.unitBadge}>
+              <Text style={styles.unitBadgeText}>{unitLabel}</Text>
+            </View>
+            <Text style={styles.itemTotal}>
+              {itemTotal.toFixed(2)} ج.م
+            </Text>
+          </View>
         </View>
-      )}
-      <View style={styles.itemInfo}>
-        <Text style={styles.itemName} numberOfLines={1}>{item.nameAr}</Text>
-        <Text style={styles.itemNameEn} numberOfLines={1}>{item.nameEn}</Text>
-        <View style={styles.itemDetails}>
-          <Text style={styles.itemPrice}>{parseFloat(item.price).toFixed(2)} ج.م</Text>
-          <Text style={styles.itemQty}>الكمية: {item.quantity}</Text>
-        </View>
-        <Text style={styles.itemTotal}>
-          الإجمالي: {(parseFloat(item.price) * item.quantity).toFixed(2)} ج.م
-        </Text>
+        <Pressable
+          onPress={() => handleRemoveItem(item.medicineId, item.nameAr)}
+          style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}
+        >
+          <MaterialIcons name="delete" size={22} color="#DC2626" />
+        </Pressable>
       </View>
-      <Pressable
-        onPress={() => handleRemoveItem(item.medicineId, item.nameAr)}
-        style={({ pressed }) => [styles.deleteBtn, pressed && { opacity: 0.7 }]}
-      >
-        <MaterialIcons name="delete" size={22} color="#DC2626" />
-      </Pressable>
-    </View>
-  );
+    );
+  };
 
   return (
     <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
@@ -144,10 +156,15 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1, marginHorizontal: 12 },
   itemName: { fontSize: 15, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   itemNameEn: { fontSize: 11, color: "#6B7280", textAlign: "right" },
-  itemDetails: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-  itemPrice: { fontSize: 13, color: "#2563EB", fontWeight: "600" },
-  itemQty: { fontSize: 13, color: "#6B7280" },
-  itemTotal: { fontSize: 14, fontWeight: "bold", color: "#2563EB", marginTop: 4, textAlign: "right" },
+  itemDetails: { flexDirection: "row", justifyContent: "flex-end", marginTop: 4 },
+  itemPrice: { fontSize: 13, color: "#6B7280" },
+  itemQtyRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 6 },
+  unitBadge: {
+    backgroundColor: "#EFF6FF", paddingHorizontal: 10, paddingVertical: 3,
+    borderRadius: 12, borderWidth: 1, borderColor: "#BFDBFE",
+  },
+  unitBadgeText: { fontSize: 12, fontWeight: "600", color: "#2563EB" },
+  itemTotal: { fontSize: 15, fontWeight: "bold", color: "#2563EB" },
   deleteBtn: { justifyContent: "center", padding: 8 },
   bottomBar: {
     padding: 16, borderTopWidth: 1, borderTopColor: "#E5E7EB",

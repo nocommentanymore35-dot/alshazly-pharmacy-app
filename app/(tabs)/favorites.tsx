@@ -13,14 +13,8 @@ export default function FavoritesScreen() {
 
   const handleAddToCart = (item: FavoriteItem) => {
     if (isInCart(item.medicineId)) return;
-    addToCart({
-      medicineId: item.medicineId,
-      nameAr: item.nameAr,
-      nameEn: item.nameEn,
-      price: item.price,
-      quantity: 1,
-      imageUrl: item.imageUrl,
-    });
+    // Navigate to medicine detail to choose unit type and quantity
+    router.push(`/medicine/${item.medicineId}` as any);
   };
 
   const renderFavoriteItem = ({ item }: { item: FavoriteItem }) => (

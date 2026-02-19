@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Text, View, ScrollView, Alert, ActivityIndicator, StyleSheet, Clipboard, Platform } from "react-native";
+import { Text, View, ScrollView, Alert, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
-import { useAppStore } from "@/lib/store";
+import { useAppStore, calcItemTotal, getUnitLabel, getPricePerUnit } from "@/lib/store";
 import { trpc } from "@/lib/trpc";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -31,12 +31,17 @@ export default function CheckoutScreen() {
         customerAddress: state.profile.address,
         totalAmount: cartTotal().toFixed(2),
         paymentMethod,
-        items: state.cart.map(item => ({
-          medicineId: item.medicineId,
-          medicineName: item.nameAr,
-          quantity: item.quantity,
-          price: item.price,
-        })),
+        items: state.cart.map(item => {
+          const unitType = item.unitType || "box";
+          const stripsPerBox = item.stripsPerBox || 1;
+          const unitLabel = unitType === "strip" ? "شريط" : "علبة";
+          return {
+            medicineId: item.medicineId,
+            medicineName: `${item.nameAr} (${item.quantity} ${unitLabel})`,
+            quantity: item.quantity,
+            price: calcItemTotal(item).toFixed(2),
+          };
+        }),
       });
 
       clearCart();
@@ -87,17 +92,32 @@ export default function CheckoutScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>ملخص الطلب</Text>
             <View style={styles.infoCard}>
-              {state.cart.map((item) => (
-                <View key={item.medicineId} style={styles.orderItem}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.orderItemName}>{item.nameAr}</Text>
-                    <Text style={styles.orderItemQty}>الكمية: {item.quantity}</Text>
+              {state.cart.map((item) => {
+                const unitType = item.unitType || "box";
+                const stripsPerBox = item.stripsPerBox || 1;
+                const unitPrice = getPricePerUnit(item.price, stripsPerBox, unitType);
+                const itemTotal = calcItemTotal(item);
+                const unitLabel = getUnitLabel(unitType, item.quantity);
+
+                return (
+                  <View key={item.medicineId} style={styles.orderItem}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.orderItemName}>{item.nameAr}</Text>
+                      <View style={styles.orderItemMeta}>
+                        <View style={styles.orderUnitBadge}>
+                          <Text style={styles.orderUnitBadgeText}>{unitLabel}</Text>
+                        </View>
+                        <Text style={styles.orderItemUnitPrice}>
+                          × {unitPrice.toFixed(2)} ج.م
+                        </Text>
+                      </View>
+                    </View>
+                    <Text style={styles.orderItemPrice}>
+                      {itemTotal.toFixed(2)} ج.م
+                    </Text>
                   </View>
-                  <Text style={styles.orderItemPrice}>
-                    {(parseFloat(item.price) * item.quantity).toFixed(2)} ج.م
-                  </Text>
-                </View>
-              ))}
+                );
+              })}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>الإجمالي</Text>
                 <Text style={styles.totalAmount}>{cartTotal().toFixed(2)} ج.م</Text>
@@ -229,11 +249,17 @@ const styles = StyleSheet.create({
   infoText: { fontSize: 14, color: "#374151", flex: 1, textAlign: "right" },
   orderItem: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
   },
   orderItemName: { fontSize: 14, fontWeight: "600", color: "#1F2937", textAlign: "right" },
-  orderItemQty: { fontSize: 12, color: "#6B7280", textAlign: "right" },
-  orderItemPrice: { fontSize: 14, fontWeight: "bold", color: "#2563EB" },
+  orderItemMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
+  orderUnitBadge: {
+    backgroundColor: "#EFF6FF", paddingHorizontal: 8, paddingVertical: 2,
+    borderRadius: 10, borderWidth: 1, borderColor: "#BFDBFE",
+  },
+  orderUnitBadgeText: { fontSize: 11, fontWeight: "600", color: "#2563EB" },
+  orderItemUnitPrice: { fontSize: 12, color: "#6B7280" },
+  orderItemPrice: { fontSize: 14, fontWeight: "bold", color: "#2563EB", marginLeft: 8 },
   totalRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingTop: 12, marginTop: 4,

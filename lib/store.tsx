@@ -3,12 +3,16 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
 // Types
+export type UnitType = "strip" | "box";
+
 export interface CartItem {
   medicineId: number;
   nameAr: string;
   nameEn: string;
-  price: string;
+  price: string; // price per box
   quantity: number;
+  unitType: UnitType; // "strip" or "box"
+  stripsPerBox: number; // how many strips in one box
   imageUrl?: string;
 }
 
@@ -90,6 +94,34 @@ function appReducer(state: AppState, action: Action): AppState {
   }
 }
 
+// Helper to calculate item total price
+export function calcItemTotal(item: CartItem): number {
+  const boxPrice = parseFloat(item.price);
+  const stripsPerBox = item.stripsPerBox || 1;
+  if (item.unitType === "strip") {
+    const stripPrice = boxPrice / stripsPerBox;
+    return stripPrice * item.quantity;
+  }
+  return boxPrice * item.quantity;
+}
+
+// Helper to get unit label
+export function getUnitLabel(unitType: UnitType, quantity: number): string {
+  if (unitType === "strip") {
+    return quantity === 1 ? "شريط" : quantity === 2 ? "شريطين" : `${quantity} شرائط`;
+  }
+  return quantity === 1 ? "علبة" : quantity === 2 ? "علبتين" : `${quantity} علب`;
+}
+
+// Helper to get price per unit
+export function getPricePerUnit(boxPrice: string, stripsPerBox: number, unitType: UnitType): number {
+  const price = parseFloat(boxPrice);
+  if (unitType === "strip") {
+    return price / (stripsPerBox || 1);
+  }
+  return price;
+}
+
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<Action>;
@@ -123,6 +155,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
+          // Migrate old cart items that don't have unitType
+          if (parsed.cart) {
+            parsed.cart = parsed.cart.map((item: any) => ({
+              ...item,
+              unitType: item.unitType || "box",
+              stripsPerBox: item.stripsPerBox || 1,
+            }));
+          }
           dispatch({ type: "LOAD_STATE", payload: parsed });
           if (!parsed.deviceId) {
             const id = generateDeviceId();
@@ -159,7 +199,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const removeFromFavorites = useCallback((id: number) => dispatch({ type: "REMOVE_FROM_FAVORITES", payload: id }), []);
   const isFavorite = useCallback((id: number) => state.favorites.some(i => i.medicineId === id), [state.favorites]);
   const isInCart = useCallback((id: number) => state.cart.some(i => i.medicineId === id), [state.cart]);
-  const cartTotal = useCallback(() => state.cart.reduce((sum, i) => sum + parseFloat(i.price) * i.quantity, 0), [state.cart]);
+  const cartTotal = useCallback(() => state.cart.reduce((sum, item) => sum + calcItemTotal(item), 0), [state.cart]);
   const setProfile = useCallback((data: Partial<CustomerProfile>) => dispatch({ type: "SET_PROFILE", payload: data }), []);
   const setAdminLoggedIn = useCallback((value: boolean) => dispatch({ type: "SET_ADMIN_LOGGED_IN", payload: value }), []);
 

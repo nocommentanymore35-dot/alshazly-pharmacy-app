@@ -14,7 +14,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const BANNER_WIDTH = SCREEN_WIDTH - 32;
-const BANNER_HEIGHT = 179;
+const BANNER_HEIGHT = 200;
 const BANNER_INTERVAL = 7000;
 
 export default function HomeScreen() {
