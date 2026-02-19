@@ -10,7 +10,7 @@ import * as ClipboardExpo from "expo-clipboard";
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { state, clearCart, cartTotal } = useAppStore();
+  const { state, clearCart, cartTotal, addLoyaltyPoints } = useAppStore();
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "vodafone_cash">("cash");
   const [submitting, setSubmitting] = useState(false);
 
@@ -44,10 +44,13 @@ export default function CheckoutScreen() {
         }),
       });
 
+      // Add loyalty points
+      addLoyaltyPoints(50, `طلب رقم #${orderId}`, orderId);
+
       clearCart();
       Alert.alert(
-        "تم تأكيد الطلب",
-        `تم إرسال طلبك بنجاح! رقم الطلب: #${orderId}\n\nسيتم التواصل معك قريباً.`,
+        "تم تأكيد الطلب ✅",
+        `تم إرسال طلبك بنجاح! رقم الطلب: #${orderId}\n\n🌟 تم إضافة 50 نقطة إلى رصيدك في برنامج الولاء!\n\nسيتم التواصل معك قريباً.`,
         [{ text: "حسناً", onPress: () => router.replace("/(tabs)/profile" as any) }]
       );
     } catch (e) {

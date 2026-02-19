@@ -35,6 +35,7 @@ const MAPPING = {
   "lock.fill": "lock",
   "eye.fill": "visibility",
   "eye.slash.fill": "visibility-off",
+  "gift.fill": "card-giftcard",
 } as IconMapping;
 
 export function IconSymbol({

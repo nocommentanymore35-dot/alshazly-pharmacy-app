@@ -31,6 +31,19 @@ export interface CustomerProfile {
   address: string;
 }
 
+export interface LoyaltyTransaction {
+  id: string;
+  date: string; // ISO date
+  points: number;
+  description: string;
+  orderId?: number;
+}
+
+export interface LoyaltyState {
+  totalPoints: number;
+  transactions: LoyaltyTransaction[];
+}
+
 interface AppState {
   cart: CartItem[];
   favorites: FavoriteItem[];
@@ -38,6 +51,7 @@ interface AppState {
   deviceId: string;
   customerId: number | null;
   isAdminLoggedIn: boolean;
+  loyalty: LoyaltyState;
 }
 
 type Action =
@@ -50,6 +64,7 @@ type Action =
   | { type: "SET_DEVICE_ID"; payload: string }
   | { type: "SET_CUSTOMER_ID"; payload: number }
   | { type: "SET_ADMIN_LOGGED_IN"; payload: boolean }
+  | { type: "ADD_LOYALTY_POINTS"; payload: { points: number; description: string; orderId?: number } }
   | { type: "LOAD_STATE"; payload: Partial<AppState> };
 
 const initialState: AppState = {
@@ -59,6 +74,7 @@ const initialState: AppState = {
   deviceId: "",
   customerId: null,
   isAdminLoggedIn: false,
+  loyalty: { totalPoints: 0, transactions: [] },
 };
 
 function appReducer(state: AppState, action: Action): AppState {
@@ -87,6 +103,22 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, customerId: action.payload };
     case "SET_ADMIN_LOGGED_IN":
       return { ...state, isAdminLoggedIn: action.payload };
+    case "ADD_LOYALTY_POINTS": {
+      const transaction: LoyaltyTransaction = {
+        id: "txn_" + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+        date: new Date().toISOString(),
+        points: action.payload.points,
+        description: action.payload.description,
+        orderId: action.payload.orderId,
+      };
+      return {
+        ...state,
+        loyalty: {
+          totalPoints: state.loyalty.totalPoints + action.payload.points,
+          transactions: [transaction, ...state.loyalty.transactions],
+        },
+      };
+    }
     case "LOAD_STATE":
       return { ...state, ...action.payload };
     default:
@@ -135,6 +167,7 @@ interface AppContextType {
   cartTotal: () => number;
   setProfile: (data: Partial<CustomerProfile>) => void;
   setAdminLoggedIn: (value: boolean) => void;
+  addLoyaltyPoints: (points: number, description: string, orderId?: number) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -188,9 +221,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         profile: state.profile,
         deviceId: state.deviceId,
         customerId: state.customerId,
+        loyalty: state.loyalty,
       }));
     }
-  }, [state.cart, state.favorites, state.profile, state.deviceId, state.customerId]);
+  }, [state.cart, state.favorites, state.profile, state.deviceId, state.customerId, state.loyalty]);
 
   const addToCart = useCallback((item: CartItem) => dispatch({ type: "ADD_TO_CART", payload: item }), []);
   const removeFromCart = useCallback((id: number) => dispatch({ type: "REMOVE_FROM_CART", payload: id }), []);
@@ -202,12 +236,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const cartTotal = useCallback(() => state.cart.reduce((sum, item) => sum + calcItemTotal(item), 0), [state.cart]);
   const setProfile = useCallback((data: Partial<CustomerProfile>) => dispatch({ type: "SET_PROFILE", payload: data }), []);
   const setAdminLoggedIn = useCallback((value: boolean) => dispatch({ type: "SET_ADMIN_LOGGED_IN", payload: value }), []);
+  const addLoyaltyPoints = useCallback((points: number, description: string, orderId?: number) => dispatch({ type: "ADD_LOYALTY_POINTS", payload: { points, description, orderId } }), []);
 
   return (
     <AppContext.Provider value={{
       state, dispatch, addToCart, removeFromCart, clearCart,
       addToFavorites, removeFromFavorites, isFavorite, isInCart,
-      cartTotal, setProfile, setAdminLoggedIn,
+      cartTotal, setProfile, setAdminLoggedIn, addLoyaltyPoints,
     }}>
       {children}
     </AppContext.Provider>
