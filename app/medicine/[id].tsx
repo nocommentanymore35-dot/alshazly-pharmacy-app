@@ -229,7 +229,7 @@ export default function MedicineDetailScreen() {
               pressed && !isInCart(medicine.id) && { opacity: 0.9, transform: [{ scale: 0.97 }] },
             ]}
           >
-            <MaterialIcons name="shopping-cart" size={20} color="#fff" />
+            <MaterialIcons name="shopping-cart" size={24} color="#fff" />
             <Text style={styles.addToCartText}>
               {isInCart(medicine.id) ? "في السلة" : "إضافة للسلة"}
             </Text>
@@ -305,10 +305,11 @@ const styles = StyleSheet.create({
   qtyText: { fontSize: 18, fontWeight: "bold", color: "#1F2937", minWidth: 32, textAlign: "center" },
   unitLabel: { fontSize: 15, fontWeight: "600", color: "#2563EB" },
   addToCartBtn: {
-    flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 14, gap: 8,
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    backgroundColor: "#2563EB", borderRadius: 14, paddingVertical: 18, paddingHorizontal: 20, gap: 10,
+    width: "100%",
   },
   addToCartBtnDisabled: { backgroundColor: "#9CA3AF" },
-  addToCartText: { color: "#fff", fontSize: 15, fontWeight: "bold" },
-  addToCartPrice: { color: "rgba(255,255,255,0.8)", fontSize: 13 },
+  addToCartText: { color: "#fff", fontSize: 18, fontWeight: "bold", letterSpacing: 0.3 },
+  addToCartPrice: { color: "rgba(255,255,255,0.9)", fontSize: 15, fontWeight: "600" },
 });
