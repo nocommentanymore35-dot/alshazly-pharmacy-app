@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View, ScrollView, ActivityIndicator, StyleSheet, Platform } from "react-native";
+import { Text, View, ScrollView, ActivityIndicator, StyleSheet, Platform, Animated as RNAnimated } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -15,6 +15,8 @@ export default function MedicineDetailScreen() {
   const { addToCart, addToFavorites, isFavorite, isInCart } = useAppStore();
   const [quantity, setQuantity] = useState(1);
   const [unitType, setUnitType] = useState<UnitType>("box");
+  const [showToast, setShowToast] = useState(false);
+  const toastOpacity = useState(() => new RNAnimated.Value(0))[0];
   const insets = useSafeAreaInsets();
 
   const medicineQuery = trpc.medicines.byId.useQuery({ id: parseInt(id) });
@@ -60,7 +62,16 @@ export default function MedicineDetailScreen() {
       stripsPerBox,
       imageUrl: medicine.imageUrl ?? undefined,
     });
-    router.back();
+    // Show toast
+    setShowToast(true);
+    RNAnimated.sequence([
+      RNAnimated.timing(toastOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      RNAnimated.delay(1500),
+      RNAnimated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => {
+      setShowToast(false);
+      router.back();
+    });
   };
 
   const handleToggleFavorite = () => {
@@ -239,6 +250,16 @@ export default function MedicineDetailScreen() {
           </Pressable>
         </View>
       </View>
+
+      {/* Toast Message */}
+      {showToast && (
+        <RNAnimated.View style={[styles.toastContainer, { opacity: toastOpacity }]}>
+          <View style={styles.toast}>
+            <MaterialIcons name="check-circle" size={24} color="#22C55E" />
+            <Text style={styles.toastText}>تم إضافة الصنف إلى عربة التسوق بنجاح</Text>
+          </View>
+        </RNAnimated.View>
+      )}
     </ScreenContainer>
   );
 }
@@ -312,4 +333,15 @@ const styles = StyleSheet.create({
   addToCartBtnDisabled: { backgroundColor: "#9CA3AF" },
   addToCartText: { color: "#fff", fontSize: 18, fontWeight: "bold", letterSpacing: 0.3 },
   addToCartPrice: { color: "rgba(255,255,255,0.9)", fontSize: 15, fontWeight: "600" },
+  toastContainer: {
+    position: "absolute", top: "40%", left: 0, right: 0, alignItems: "center", zIndex: 999,
+  },
+  toast: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: "#fff", paddingHorizontal: 20, paddingVertical: 14,
+    borderRadius: 12, shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+    borderWidth: 1, borderColor: "#E5E7EB",
+  },
+  toastText: { fontSize: 15, fontWeight: "600", color: "#1F2937", textAlign: "right" },
 });
