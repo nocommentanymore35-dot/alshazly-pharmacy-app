@@ -30,6 +30,7 @@ export const medicines = mysqlTable("medicines", {
   nameEn: varchar("nameEn", { length: 255 }).notNull(),
   descriptionAr: text("descriptionAr"),
   descriptionEn: text("descriptionEn"),
+  strips: int("strips").default(1).notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   imageUrl: text("imageUrl"),
   categoryId: int("categoryId").notNull(),

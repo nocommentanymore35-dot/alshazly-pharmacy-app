@@ -1,0 +1,1 @@
+ALTER TABLE `medicines` ADD `strips` int DEFAULT 1 NOT NULL;

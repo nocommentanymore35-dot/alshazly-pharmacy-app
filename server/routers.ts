@@ -52,14 +52,16 @@ export const appRouter = router({
         descriptionAr: z.string().optional(), descriptionEn: z.string().optional(),
         price: z.string(), imageUrl: z.string().optional(),
         categoryId: z.number(), stock: z.number().optional(),
+        strips: z.number().optional(),
       }))
-      .mutation(({ input }) => db.createMedicine({ ...input, stock: input.stock ?? 0 })),
+      .mutation(({ input }) => db.createMedicine({ ...input, stock: input.stock ?? 0, strips: input.strips ?? 1 })),
     update: publicProcedure
       .input(z.object({
         id: z.number(), nameAr: z.string().optional(), nameEn: z.string().optional(),
         descriptionAr: z.string().optional(), descriptionEn: z.string().optional(),
         price: z.string().optional(), imageUrl: z.string().optional(),
-        categoryId: z.number().optional(), stock: z.number().optional(), isActive: z.boolean().optional(),
+        categoryId: z.number().optional(), stock: z.number().optional(),
+        strips: z.number().optional(), isActive: z.boolean().optional(),
       }))
       .mutation(({ input }) => { const { id, ...data } = input; return db.updateMedicine(id, data); }),
     delete: publicProcedure

@@ -5,7 +5,6 @@ import {
   I18nManager, StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
-import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { trpc } from "@/lib/trpc";
@@ -132,9 +131,13 @@ export default function HomeScreen() {
   );
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
-      <View style={styles.container}>
-        {/* Header */}
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-background">
+      <ScrollView
+        style={styles.container}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4169E1" />}
+      >
+        {/* Header with blue background + curved bottom */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>صيدلية الشاذلي</Text>
@@ -160,109 +163,110 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </View>
-
-          {/* Banners - directly under search */}
-          {banners.length > 0 && (
-            <View style={styles.bannerSection}>
-              <FlatList
-                ref={bannerRef}
-                data={banners}
-                renderItem={renderBanner}
-                keyExtractor={(item) => item.id.toString()}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                snapToInterval={BANNER_WIDTH + 12}
-                decelerationRate="fast"
-                contentContainerStyle={{ paddingHorizontal: 16 }}
-                ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-                onMomentumScrollEnd={(e) => {
-                  const index = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + 12));
-                  setCurrentBanner(index);
-                }}
-                getItemLayout={(_, index) => ({
-                  length: BANNER_WIDTH + 12,
-                  offset: (BANNER_WIDTH + 12) * index,
-                  index,
-                })}
-              />
-              {/* Pagination dots */}
-              <View style={styles.dotsContainer}>
-                {banners.map((_, i) => (
-                  <View key={i} style={[styles.dot, i === currentBanner && styles.dotActive]} />
-                ))}
-              </View>
-            </View>
-          )}
         </View>
 
-        <ScrollView
-          style={styles.body}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4169E1" />}
-        >
-          {/* Categories */}
-          {categories.length > 0 && (
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>الفئات</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+        {/* Banners - OUTSIDE blue header, on white background */}
+        {banners.length > 0 && (
+          <View style={styles.bannerSection}>
+            <FlatList
+              ref={bannerRef}
+              data={banners}
+              renderItem={renderBanner}
+              keyExtractor={(item) => item.id.toString()}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={BANNER_WIDTH + 12}
+              decelerationRate="fast"
+              contentContainerStyle={{ paddingHorizontal: 16 }}
+              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+              onMomentumScrollEnd={(e) => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + 12));
+                setCurrentBanner(index);
+              }}
+              getItemLayout={(_, index) => ({
+                length: BANNER_WIDTH + 12,
+                offset: (BANNER_WIDTH + 12) * index,
+                index,
+              })}
+            />
+            {/* Pagination dots */}
+            <View style={styles.dotsContainer}>
+              {banners.map((_, i) => (
+                <View key={i} style={[styles.dot, i === currentBanner && styles.dotActive]} />
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Categories */}
+        {categories.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>الفئات</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+              <Pressable
+                onPress={() => setSelectedCategory(null)}
+                style={({ pressed }) => [
+                  styles.categoryChip,
+                  selectedCategory === null && styles.categoryChipActive,
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Text style={[styles.categoryChipText, selectedCategory === null && styles.categoryChipTextActive]}>الكل</Text>
+              </Pressable>
+              {categories.map((cat: any) => (
                 <Pressable
-                  onPress={() => setSelectedCategory(null)}
+                  key={cat.id}
+                  onPress={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
                   style={({ pressed }) => [
                     styles.categoryChip,
-                    selectedCategory === null && styles.categoryChipActive,
+                    selectedCategory === cat.id && styles.categoryChipActive,
                     pressed && { opacity: 0.8 },
                   ]}
                 >
-                  <Text style={[styles.categoryChipText, selectedCategory === null && styles.categoryChipTextActive]}>الكل</Text>
+                  <Text style={[styles.categoryChipText, selectedCategory === cat.id && styles.categoryChipTextActive]}>{cat.nameAr}</Text>
                 </Pressable>
-                {categories.map((cat: any) => (
-                  <Pressable
-                    key={cat.id}
-                    onPress={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
-                    style={({ pressed }) => [
-                      styles.categoryChip,
-                      selectedCategory === cat.id && styles.categoryChipActive,
-                      pressed && { opacity: 0.8 },
-                    ]}
-                  >
-                    <Text style={[styles.categoryChipText, selectedCategory === cat.id && styles.categoryChipTextActive]}>{cat.nameAr}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            </View>
-          )}
-
-          {/* Medicines */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>الأدوية ({displayMedicines.length})</Text>
-            {(medicinesQuery.isLoading || searchMedicinesQuery.isLoading || categoryMedicinesQuery.isLoading) ? (
-              <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 20 }} />
-            ) : displayMedicines.length === 0 ? (
-              <View style={styles.emptyState}>
-                <MaterialIcons name="medication" size={48} color="#D1D5DB" />
-                <Text style={styles.emptyText}>
-                  {searchQuery.length > 0 ? "لا توجد نتائج للبحث" : "لا توجد أدوية حالياً"}
-                </Text>
-                <Text style={styles.emptySubtext}>
-                  {searchQuery.length > 0 ? "جرب كلمات بحث مختلفة" : "سيتم إضافة الأدوية قريباً"}
-                </Text>
-              </View>
-            ) : (
-              displayMedicines.map((med: any) => renderMedicine({ item: med }))
-            )}
+              ))}
+            </ScrollView>
           </View>
+        )}
 
-          <View style={{ height: 100 }} />
-        </ScrollView>
-      </View>
+        {/* Medicines */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>الأدوية ({displayMedicines.length})</Text>
+          {(medicinesQuery.isLoading || searchMedicinesQuery.isLoading || categoryMedicinesQuery.isLoading) ? (
+            <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 20 }} />
+          ) : displayMedicines.length === 0 ? (
+            <View style={styles.emptyState}>
+              <MaterialIcons name="medication" size={48} color="#D1D5DB" />
+              <Text style={styles.emptyText}>
+                {searchQuery.length > 0 ? "لا توجد نتائج للبحث" : "لا توجد أدوية حالياً"}
+              </Text>
+              <Text style={styles.emptySubtext}>
+                {searchQuery.length > 0 ? "جرب كلمات بحث مختلفة" : "سيتم إضافة الأدوية قريباً"}
+              </Text>
+            </View>
+          ) : (
+            displayMedicines.map((med: any) => renderMedicine({ item: med }))
+          )}
+        </View>
+
+        <View style={{ height: 100 }} />
+      </ScrollView>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  header: { backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16 },
+  header: {
+    backgroundColor: "#4169E1",
+    paddingHorizontal: 16,
+    paddingTop: 48,
+    paddingBottom: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+  },
   headerContent: { alignItems: "center", marginBottom: 12 },
   headerTitle: { fontSize: 24, fontWeight: "bold", color: "#fff", textAlign: "center" },
   headerSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 4, textAlign: "center" },
@@ -271,8 +275,7 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 12, height: 44,
   },
   searchInput: { flex: 1, fontSize: 15, color: "#1F2937", textAlign: "right", paddingHorizontal: 8 },
-  body: { flex: 1, backgroundColor: "#fff" },
-  bannerSection: { marginTop: 12, paddingBottom: 8 },
+  bannerSection: { marginTop: 16, paddingBottom: 8 },
   bannerItem: { width: BANNER_WIDTH, height: BANNER_HEIGHT, borderRadius: 12, overflow: "hidden" },
   bannerImage: { width: "100%", height: "100%", borderRadius: 12 },
   bannerOverlay: {
@@ -288,8 +291,8 @@ const styles = StyleSheet.create({
   },
   bannerButtonText: { color: "#fff", fontSize: 13, fontWeight: "600" },
   dotsContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10, gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.4)" },
-  dotActive: { backgroundColor: "#fff", width: 20 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#D1D5DB" },
+  dotActive: { backgroundColor: "#4169E1", width: 20 },
   section: { marginTop: 20, paddingHorizontal: 16 },
   sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 12, textAlign: "right" },
   categoryChip: {
