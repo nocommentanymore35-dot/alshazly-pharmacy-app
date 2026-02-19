@@ -137,7 +137,10 @@ export default function MedicineDetailScreen() {
             {/* Unit Type Selector - only show if strips > 1 */}
             {stripsPerBox > 1 && (
               <View style={styles.unitSection}>
-                <Text style={styles.unitSectionTitle}>اختر وحدة الشراء</Text>
+                <View style={styles.unitSectionTitleRow}>
+                  <MaterialIcons name="info" size={20} color="#F59E0B" />
+                  <Text style={styles.unitSectionTitle}>اختر وحدة الشراء</Text>
+                </View>
                 <View style={styles.unitToggleContainer}>
                   <Pressable
                     onPress={() => handleUnitChange("strip")}
@@ -207,7 +210,7 @@ export default function MedicineDetailScreen() {
         </ScrollView>
 
         {/* Bottom Action Bar */}
-        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 56 }]}>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 56, marginTop: 24 }]}>
           {/* Quantity Selector with unit label */}
           <View style={styles.quantitySection}>
             <View style={styles.quantityContainer}>
@@ -288,7 +291,8 @@ const styles = StyleSheet.create({
   
   // Unit Type Selector
   unitSection: { marginTop: 20 },
-  unitSectionTitle: { fontSize: 16, fontWeight: "bold", color: "#1F2937", marginBottom: 12, textAlign: "right" },
+  unitSectionTitleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, marginBottom: 12 },
+  unitSectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   unitToggleContainer: { flexDirection: "row", gap: 12 },
   unitToggleBtn: {
     flex: 1, flexDirection: "column", alignItems: "center", justifyContent: "center",
