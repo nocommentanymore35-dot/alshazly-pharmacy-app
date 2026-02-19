@@ -85,13 +85,17 @@ export default function HomeScreen() {
           <MaterialIcons name="local-pharmacy" size={48} color="#fff" />
         </View>
       )}
-      {/* Only show text overlay if title or description exists */}
+      {/* Text overlay at bottom-right if exists */}
       {(item.title || item.description) ? (
         <View style={styles.bannerTextOverlay}>
           {item.title ? <Text style={styles.bannerTitle} numberOfLines={1}>{item.title}</Text> : null}
           {item.description ? <Text style={styles.bannerDesc} numberOfLines={1}>{item.description}</Text> : null}
         </View>
       ) : null}
+      {/* Details button - small, bottom-left */}
+      <View style={styles.bannerDetailsBtn}>
+        <Text style={styles.bannerDetailsBtnText}>تفاصيل</Text>
+      </View>
     </Pressable>
   );
 
@@ -286,6 +290,13 @@ const styles = StyleSheet.create({
   },
   bannerTitle: { fontSize: 15, fontWeight: "bold", color: "#fff", textAlign: "right" },
   bannerDesc: { fontSize: 12, color: "rgba(255,255,255,0.9)", textAlign: "right", marginTop: 2 },
+  bannerDetailsBtn: {
+    position: "absolute", bottom: 8, left: 8,
+    backgroundColor: "rgba(255,255,255,0.85)",
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 12,
+  },
+  bannerDetailsBtnText: { fontSize: 11, fontWeight: "600", color: "#4169E1" },
   dotsContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10, gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#D1D5DB" },
   dotActive: { backgroundColor: "#4169E1", width: 20 },
