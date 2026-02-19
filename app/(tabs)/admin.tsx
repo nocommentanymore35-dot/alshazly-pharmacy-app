@@ -513,8 +513,8 @@ function BannersManagement() {
   };
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      Alert.alert("خطأ", "يرجى إدخال عنوان الإعلان");
+    if (!imageUrl.trim()) {
+      Alert.alert("خطأ", "يرجى إدخال رابط صورة الإعلان");
       return;
     }
     try {
@@ -526,8 +526,8 @@ function BannersManagement() {
         });
       } else {
         await createMutation.mutateAsync({
-          title: title.trim(), description: description.trim(),
-          imageUrl: imageUrl.trim() || undefined,
+          title: title.trim() || undefined, description: description.trim() || undefined,
+          imageUrl: imageUrl.trim(),
           sortOrder: parseInt(sortOrder) || 0,
         });
       }
@@ -562,9 +562,9 @@ function BannersManagement() {
       {showForm && (
         <View style={styles.formCard}>
           <Text style={styles.formCardTitle}>{editId ? "تعديل إعلان" : "إضافة إعلان جديد"}</Text>
-          <TextInput style={styles.formInput} placeholder="عنوان الإعلان *" value={title} onChangeText={setTitle} placeholderTextColor="#9CA3AF" />
-          <TextInput style={[styles.formInput, { height: 70 }]} placeholder="وصف الإعلان" value={description} onChangeText={setDescription} multiline placeholderTextColor="#9CA3AF" />
-          <TextInput style={styles.formInput} placeholder="رابط صورة الإعلان (URL)" value={imageUrl} onChangeText={setImageUrl} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
+          <TextInput style={styles.formInput} placeholder="عنوان الإعلان (اختياري)" value={title} onChangeText={setTitle} placeholderTextColor="#9CA3AF" />
+          <TextInput style={[styles.formInput, { height: 70 }]} placeholder="وصف الإعلان (اختياري)" value={description} onChangeText={setDescription} multiline placeholderTextColor="#9CA3AF" />
+          <TextInput style={styles.formInput} placeholder="رابط صورة الإعلان (URL) *" value={imageUrl} onChangeText={setImageUrl} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
           {imageUrl.trim() ? (
             <View style={{ alignItems: "center", marginBottom: 10 }}>
               <Image source={{ uri: imageUrl.trim() }} style={{ width: "100%", height: 120, borderRadius: 8 }} contentFit="cover" />

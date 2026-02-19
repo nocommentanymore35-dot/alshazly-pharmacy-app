@@ -43,7 +43,7 @@ export const medicines = mysqlTable("medicines", {
 // Banners/Advertisements table
 export const banners = mysqlTable("banners", {
   id: int("id").autoincrement().primaryKey(),
-  title: varchar("title", { length: 255 }).notNull(),
+  title: varchar("title", { length: 255 }),
   description: text("description"),
   imageUrl: text("imageUrl"),
   sortOrder: int("sortOrder").default(0).notNull(),

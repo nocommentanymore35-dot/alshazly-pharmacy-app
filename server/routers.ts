@@ -74,7 +74,7 @@ export const appRouter = router({
     list: publicProcedure.query(() => db.getActiveBanners()),
     listAll: publicProcedure.query(() => db.getAllBanners()),
     create: publicProcedure
-      .input(z.object({ title: z.string(), description: z.string().optional(), imageUrl: z.string().optional(), sortOrder: z.number().optional() }))
+      .input(z.object({ title: z.string().optional(), description: z.string().optional(), imageUrl: z.string(), sortOrder: z.number().optional() }))
       .mutation(({ input }) => db.createBanner({ ...input, sortOrder: input.sortOrder ?? 0 })),
     update: publicProcedure
       .input(z.object({ id: z.number(), title: z.string().optional(), description: z.string().optional(), imageUrl: z.string().optional(), sortOrder: z.number().optional(), isActive: z.boolean().optional() }))

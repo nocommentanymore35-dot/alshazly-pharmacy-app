@@ -85,13 +85,13 @@ export default function HomeScreen() {
           <MaterialIcons name="local-pharmacy" size={48} color="#fff" />
         </View>
       )}
-      <View style={styles.bannerOverlay}>
-        <Text style={styles.bannerTitle}>{item.title}</Text>
-        {item.description ? <Text style={styles.bannerDesc}>{item.description}</Text> : null}
-        <View style={styles.bannerButton}>
-          <Text style={styles.bannerButtonText}>تفاصيل</Text>
+      {/* Only show text overlay if title or description exists */}
+      {(item.title || item.description) ? (
+        <View style={styles.bannerTextOverlay}>
+          {item.title ? <Text style={styles.bannerTitle} numberOfLines={1}>{item.title}</Text> : null}
+          {item.description ? <Text style={styles.bannerDesc} numberOfLines={1}>{item.description}</Text> : null}
         </View>
-      </View>
+      ) : null}
     </Pressable>
   );
 
@@ -278,18 +278,14 @@ const styles = StyleSheet.create({
   bannerSection: { marginTop: 16, paddingBottom: 8 },
   bannerItem: { width: BANNER_WIDTH, height: BANNER_HEIGHT, borderRadius: 12, overflow: "hidden" },
   bannerImage: { width: "100%", height: "100%", borderRadius: 12 },
-  bannerOverlay: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: "rgba(26,60,110,0.55)", borderRadius: 12,
-    justifyContent: "center", alignItems: "center", padding: 16,
+  bannerTextOverlay: {
+    position: "absolute", bottom: 0, left: 0, right: 0,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    borderBottomLeftRadius: 12, borderBottomRightRadius: 12,
+    paddingHorizontal: 12, paddingVertical: 8,
   },
-  bannerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff", textAlign: "center" },
-  bannerDesc: { fontSize: 13, color: "rgba(255,255,255,0.9)", textAlign: "center", marginTop: 4 },
-  bannerButton: {
-    backgroundColor: "rgba(255,255,255,0.25)", paddingHorizontal: 16, paddingVertical: 6,
-    borderRadius: 20, marginTop: 10,
-  },
-  bannerButtonText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  bannerTitle: { fontSize: 15, fontWeight: "bold", color: "#fff", textAlign: "right" },
+  bannerDesc: { fontSize: 12, color: "rgba(255,255,255,0.9)", textAlign: "right", marginTop: 2 },
   dotsContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10, gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#D1D5DB" },
   dotActive: { backgroundColor: "#4169E1", width: 20 },
