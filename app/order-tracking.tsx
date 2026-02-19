@@ -37,7 +37,7 @@ export default function OrderTrackingScreen() {
     return (
       <ScreenContainer edges={["top", "left", "right", "bottom"]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4169E1" />
+          <ActivityIndicator size="large" color="#2563EB" />
         </View>
       </ScreenContainer>
     );
@@ -48,7 +48,7 @@ export default function OrderTrackingScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="arrow-forward" size={24} color="#4169E1" />
+            <MaterialIcons name="arrow-forward" size={24} color="#2563EB" />
           </Pressable>
           <Text style={styles.headerTitle}>تتبع الطلب #{orderId}</Text>
           <View style={{ width: 40 }} />
@@ -126,7 +126,7 @@ export default function OrderTrackingScreen() {
                 <MaterialIcons
                   name={order.paymentMethod === "cash" ? "payments" : "phone-android"}
                   size={24}
-                  color="#4169E1"
+                  color="#2563EB"
                 />
                 <Text style={styles.paymentText}>
                   {order.paymentMethod === "cash" ? "الدفع عند الاستلام" : "فودافون كاش"}
@@ -161,14 +161,14 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16, backgroundColor: "#E5E7EB",
     justifyContent: "center", alignItems: "center",
   },
-  timelineDotActive: { backgroundColor: "#4169E1" },
+  timelineDotActive: { backgroundColor: "#2563EB" },
   timelineDotCurrent: { backgroundColor: "#22C55E" },
   timelineConnector: { width: 3, flex: 1, backgroundColor: "#E5E7EB", marginVertical: 4 },
-  timelineConnectorActive: { backgroundColor: "#4169E1" },
+  timelineConnectorActive: { backgroundColor: "#2563EB" },
   timelineContent: { flex: 1, paddingHorizontal: 12, paddingTop: 6 },
   timelineLabel: { fontSize: 14, color: "#9CA3AF" },
   timelineLabelActive: { color: "#374151" },
-  timelineLabelCurrent: { color: "#4169E1", fontWeight: "bold" },
+  timelineLabelCurrent: { color: "#2563EB", fontWeight: "bold" },
   itemsSection: { padding: 16, backgroundColor: "#fff", marginBottom: 8 },
   orderItem: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
@@ -176,17 +176,17 @@ const styles = StyleSheet.create({
   },
   itemName: { fontSize: 14, fontWeight: "600", color: "#1F2937", textAlign: "right" },
   itemQty: { fontSize: 12, color: "#6B7280", textAlign: "right" },
-  itemPrice: { fontSize: 14, fontWeight: "bold", color: "#4169E1" },
+  itemPrice: { fontSize: 14, fontWeight: "bold", color: "#2563EB" },
   totalRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingTop: 12, marginTop: 4,
   },
   totalLabel: { fontSize: 16, fontWeight: "bold", color: "#1F2937" },
-  totalAmount: { fontSize: 20, fontWeight: "bold", color: "#4169E1" },
+  totalAmount: { fontSize: 20, fontWeight: "bold", color: "#2563EB" },
   paymentSection: { padding: 16, backgroundColor: "#fff" },
   paymentCard: {
     flexDirection: "row", alignItems: "center", gap: 12,
     backgroundColor: "#F0F4FF", borderRadius: 12, padding: 16,
   },
-  paymentText: { fontSize: 15, fontWeight: "600", color: "#4169E1" },
+  paymentText: { fontSize: 15, fontWeight: "600", color: "#2563EB" },
 });

@@ -88,7 +88,7 @@ export default function ProfileScreen() {
   const orders = ordersQuery.data ?? [];
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>الملف الشخصي</Text>
@@ -164,7 +164,7 @@ export default function ProfileScreen() {
             <Text style={styles.formTitle}>طلباتي</Text>
 
             {ordersQuery.isLoading ? (
-              <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 20 }} />
             ) : orders.length === 0 ? (
               <View style={styles.emptyOrders}>
                 <MaterialIcons name="receipt-long" size={48} color="#D1D5DB" />
@@ -213,7 +213,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: {
-    backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
+    backgroundColor: "#2563EB", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
     alignItems: "center",
   },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
@@ -230,7 +230,7 @@ const styles = StyleSheet.create({
   input: { flex: 1, fontSize: 15, color: "#1F2937", textAlign: "right", marginHorizontal: 8 },
   saveBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    backgroundColor: "#4169E1", borderRadius: 12, paddingVertical: 14, gap: 8, marginTop: 8,
+    backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 14, gap: 8, marginTop: 8,
   },
   saveBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   ordersSection: { padding: 16, borderTopWidth: 8, borderTopColor: "#F3F4F6" },
@@ -246,6 +246,6 @@ const styles = StyleSheet.create({
   orderStatus: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
   orderStatusText: { fontSize: 13, fontWeight: "600" },
   orderFooter: { flexDirection: "row", justifyContent: "space-between" },
-  orderTotal: { fontSize: 15, fontWeight: "bold", color: "#4169E1" },
+  orderTotal: { fontSize: 15, fontWeight: "bold", color: "#2563EB" },
   orderPayment: { fontSize: 13, color: "#6B7280" },
 });

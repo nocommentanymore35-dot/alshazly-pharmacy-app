@@ -43,7 +43,7 @@ export default function CartScreen() {
         <Image source={{ uri: item.imageUrl }} style={styles.itemImage} contentFit="cover" />
       ) : (
         <View style={[styles.itemImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
-          <MaterialIcons name="medication" size={30} color="#4169E1" />
+          <MaterialIcons name="medication" size={30} color="#2563EB" />
         </View>
       )}
       <View style={styles.itemInfo}>
@@ -67,7 +67,7 @@ export default function CartScreen() {
   );
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -126,7 +126,7 @@ export default function CartScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: {
-    backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
+    backgroundColor: "#2563EB", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
@@ -145,9 +145,9 @@ const styles = StyleSheet.create({
   itemName: { fontSize: 15, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   itemNameEn: { fontSize: 11, color: "#6B7280", textAlign: "right" },
   itemDetails: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-  itemPrice: { fontSize: 13, color: "#4169E1", fontWeight: "600" },
+  itemPrice: { fontSize: 13, color: "#2563EB", fontWeight: "600" },
   itemQty: { fontSize: 13, color: "#6B7280" },
-  itemTotal: { fontSize: 14, fontWeight: "bold", color: "#4169E1", marginTop: 4, textAlign: "right" },
+  itemTotal: { fontSize: 14, fontWeight: "bold", color: "#2563EB", marginTop: 4, textAlign: "right" },
   deleteBtn: { justifyContent: "center", padding: 8 },
   bottomBar: {
     padding: 16, borderTopWidth: 1, borderTopColor: "#E5E7EB",
@@ -155,10 +155,10 @@ const styles = StyleSheet.create({
   },
   totalSection: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   totalLabel: { fontSize: 16, color: "#6B7280" },
-  totalAmount: { fontSize: 22, fontWeight: "bold", color: "#4169E1" },
+  totalAmount: { fontSize: 22, fontWeight: "bold", color: "#2563EB" },
   checkoutBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    backgroundColor: "#4169E1", borderRadius: 12, paddingVertical: 14, gap: 8,
+    backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 14, gap: 8,
   },
   checkoutText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });

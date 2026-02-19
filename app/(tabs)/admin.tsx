@@ -55,13 +55,13 @@ export default function AdminScreen() {
 
   if (!state.isAdminLoggedIn) {
     return (
-      <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
+      <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>لوحة الإدارة</Text>
           </View>
           <View style={styles.loginContainer}>
-            <MaterialIcons name="admin-panel-settings" size={64} color="#4169E1" />
+            <MaterialIcons name="admin-panel-settings" size={64} color="#2563EB" />
             <Text style={styles.loginTitle}>تسجيل دخول الإدارة</Text>
             <Text style={styles.loginHint}>هذا القسم خاص بإدارة الصيدلية فقط</Text>
 
@@ -114,7 +114,7 @@ export default function AdminScreen() {
   }
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
       <View style={styles.container}>
         <View style={styles.headerCompact}>
           <Text style={styles.headerTitleCompact}>لوحة الإدارة</Text>
@@ -144,7 +144,7 @@ export default function AdminScreen() {
                 pressed && { opacity: 0.8 },
               ]}
             >
-              <MaterialIcons name={tab.icon as any} size={16} color={activeTab === tab.key ? "#4169E1" : "#6B7280"} />
+              <MaterialIcons name={tab.icon as any} size={16} color={activeTab === tab.key ? "#2563EB" : "#6B7280"} />
               <Text style={[styles.tabLabelCompact, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
             </Pressable>
           ))}
@@ -178,7 +178,7 @@ function OrdersManagement() {
     }
   };
 
-  if (ordersQuery.isLoading) return <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 40 }} />;
+  if (ordersQuery.isLoading) return <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />;
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -612,7 +612,7 @@ function ReportsView() {
   const reportsQuery = trpc.reports.sales.useQuery();
   const report = reportsQuery.data;
 
-  if (reportsQuery.isLoading) return <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 40 }} />;
+  if (reportsQuery.isLoading) return <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />;
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -652,11 +652,11 @@ function ReportsView() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9FAFB" },
   header: {
-    backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
+    backgroundColor: "#2563EB", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   headerCompact: {
-    backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 44, paddingBottom: 10,
+    backgroundColor: "#2563EB", paddingHorizontal: 16, paddingTop: 44, paddingBottom: 10,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
@@ -673,7 +673,7 @@ const styles = StyleSheet.create({
   },
   loginField: { flex: 1, fontSize: 15, color: "#1F2937", textAlign: "right", marginHorizontal: 8 },
   loginBtn: {
-    backgroundColor: "#4169E1", borderRadius: 12, paddingVertical: 14,
+    backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 14,
     width: "100%", alignItems: "center", marginTop: 8,
   },
   loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
@@ -687,13 +687,13 @@ const styles = StyleSheet.create({
   },
   tabItemActive: { backgroundColor: "#EFF6FF" },
   tabLabelCompact: { fontSize: 11, color: "#6B7280", fontWeight: "600" },
-  tabLabelActive: { color: "#4169E1" },
+  tabLabelActive: { color: "#2563EB" },
   adminBody: { flex: 1, padding: 12 },
   adminSectionTitle: { fontSize: 16, fontWeight: "bold", color: "#1F2937", marginBottom: 10, textAlign: "right" },
   adminHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   addBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#4169E1", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8,
+    backgroundColor: "#2563EB", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8,
   },
   addBtnText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   adminEmpty: { alignItems: "center", paddingVertical: 40 },
@@ -713,13 +713,13 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 12, color: "#2563EB", fontWeight: "600" },
   delBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 4 },
   delBtnText: { fontSize: 12, color: "#DC2626", fontWeight: "600" },
-  medPrice: { fontSize: 14, fontWeight: "bold", color: "#4169E1" },
+  medPrice: { fontSize: 14, fontWeight: "bold", color: "#2563EB" },
   statusButtons: { flexDirection: "row", flexWrap: "wrap", gap: 5, borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingTop: 6 },
   statusBtn: {
     paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6,
     borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB",
   },
-  statusBtnActive: { backgroundColor: "#4169E1", borderColor: "#4169E1" },
+  statusBtnActive: { backgroundColor: "#2563EB", borderColor: "#2563EB" },
   statusBtnText: { fontSize: 10, color: "#6B7280", fontWeight: "600" },
   statusBtnTextActive: { color: "#fff" },
   // Form
@@ -738,11 +738,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14,
     borderWidth: 1, borderColor: "#E5E7EB", marginRight: 6,
   },
-  catChipActive: { backgroundColor: "#4169E1", borderColor: "#4169E1" },
+  catChipActive: { backgroundColor: "#2563EB", borderColor: "#2563EB" },
   catChipText: { fontSize: 12, color: "#6B7280" },
   catChipTextActive: { color: "#fff" },
   saveFormBtn: {
-    backgroundColor: "#4169E1", borderRadius: 8, paddingVertical: 10,
+    backgroundColor: "#2563EB", borderRadius: 8, paddingVertical: 10,
     alignItems: "center", marginTop: 4,
   },
   saveFormBtnText: { color: "#fff", fontSize: 14, fontWeight: "bold" },
@@ -761,6 +761,6 @@ const styles = StyleSheet.create({
   },
   reportRowLabel: { fontSize: 13, fontWeight: "600", color: "#1F2937" },
   reportRowValues: { alignItems: "flex-end" },
-  reportRowCount: { fontSize: 13, fontWeight: "bold", color: "#4169E1" },
+  reportRowCount: { fontSize: 13, fontWeight: "bold", color: "#2563EB" },
   reportRowRevenue: { fontSize: 11, color: "#6B7280" },
 });

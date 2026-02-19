@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View, ScrollView, ActivityIndicator, StyleSheet } from "react-native";
+import { Text, View, ScrollView, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -7,12 +7,14 @@ import { trpc } from "@/lib/trpc";
 import { useAppStore } from "@/lib/store";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function MedicineDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { addToCart, addToFavorites, isFavorite, isInCart } = useAppStore();
   const [quantity, setQuantity] = useState(1);
+  const insets = useSafeAreaInsets();
 
   const medicineQuery = trpc.medicines.byId.useQuery({ id: parseInt(id) });
   const medicine = medicineQuery.data;
@@ -21,7 +23,7 @@ export default function MedicineDetailScreen() {
     return (
       <ScreenContainer edges={["top", "left", "right", "bottom"]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#4169E1" />
+          <ActivityIndicator size="large" color="#2563EB" />
         </View>
       </ScreenContainer>
     );
@@ -70,7 +72,7 @@ export default function MedicineDetailScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="arrow-forward" size={24} color="#4169E1" />
+            <MaterialIcons name="arrow-forward" size={24} color="#2563EB" />
           </Pressable>
           <Text style={styles.headerTitle}>تفاصيل الدواء</Text>
           <Pressable onPress={handleToggleFavorite} style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.7 }]}>
@@ -84,7 +86,7 @@ export default function MedicineDetailScreen() {
             <Image source={{ uri: medicine.imageUrl }} style={styles.image} contentFit="cover" />
           ) : (
             <View style={[styles.image, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
-              <MaterialIcons name="medication" size={80} color="#4169E1" />
+              <MaterialIcons name="medication" size={80} color="#2563EB" />
             </View>
           )}
 
@@ -113,21 +115,21 @@ export default function MedicineDetailScreen() {
         </ScrollView>
 
         {/* Bottom Action Bar */}
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
           {/* Quantity Selector */}
           <View style={styles.quantityContainer}>
             <Pressable
               onPress={() => setQuantity(q => Math.max(1, q - 1))}
               style={({ pressed }) => [styles.qtyBtn, pressed && { opacity: 0.7 }]}
             >
-              <MaterialIcons name="remove" size={20} color="#4169E1" />
+              <MaterialIcons name="remove" size={20} color="#2563EB" />
             </Pressable>
             <Text style={styles.qtyText}>{quantity}</Text>
             <Pressable
               onPress={() => setQuantity(q => q + 1)}
               style={({ pressed }) => [styles.qtyBtn, pressed && { opacity: 0.7 }]}
             >
-              <MaterialIcons name="add" size={20} color="#4169E1" />
+              <MaterialIcons name="add" size={20} color="#2563EB" />
             </Pressable>
           </View>
 
@@ -159,7 +161,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { fontSize: 16, color: "#6B7280" },
-  backButton: { marginTop: 16, backgroundColor: "#4169E1", paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
+  backButton: { marginTop: 16, backgroundColor: "#2563EB", paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
   backButtonText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -172,14 +174,15 @@ const styles = StyleSheet.create({
   infoSection: { padding: 16 },
   nameAr: { fontSize: 22, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   nameEn: { fontSize: 14, color: "#6B7280", marginTop: 4, textAlign: "right" },
-  price: { fontSize: 24, fontWeight: "bold", color: "#4169E1", marginTop: 12, textAlign: "right" },
+  price: { fontSize: 24, fontWeight: "bold", color: "#2563EB", marginTop: 12, textAlign: "right" },
   descSection: { marginTop: 20 },
   descTitle: { fontSize: 16, fontWeight: "bold", color: "#1F2937", marginBottom: 8, textAlign: "right" },
   descText: { fontSize: 14, color: "#4B5563", lineHeight: 22, textAlign: "right" },
   descTitleEn: { fontSize: 16, fontWeight: "bold", color: "#1F2937", marginBottom: 8, textAlign: "left" },
   descTextEn: { fontSize: 14, color: "#4B5563", lineHeight: 22, textAlign: "left" },
   bottomBar: {
-    flexDirection: "row", alignItems: "center", padding: 16,
+    flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingTop: 12,
+    paddingBottom: 24,
     borderTopWidth: 1, borderTopColor: "#E5E7EB", backgroundColor: "#fff",
     gap: 12,
   },
@@ -191,7 +194,7 @@ const styles = StyleSheet.create({
   qtyText: { fontSize: 18, fontWeight: "bold", color: "#1F2937", minWidth: 32, textAlign: "center" },
   addToCartBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    backgroundColor: "#4169E1", borderRadius: 12, paddingVertical: 14, gap: 8,
+    backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 14, gap: 8,
   },
   addToCartBtnDisabled: { backgroundColor: "#9CA3AF" },
   addToCartText: { color: "#fff", fontSize: 15, fontWeight: "bold" },
