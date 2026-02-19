@@ -44,13 +44,16 @@ export default function CheckoutScreen() {
         }),
       });
 
-      // Add loyalty points
-      addLoyaltyPoints(50, `طلب رقم #${orderId}`, orderId);
+      // Add loyalty points: 1 point per EGP spent
+      const earnedPoints = Math.floor(cartTotal());
+      if (earnedPoints > 0) {
+        addLoyaltyPoints(earnedPoints, `طلب رقم #${orderId} (بقيمة ${cartTotal().toFixed(2)} ج.م)`, orderId);
+      }
 
       clearCart();
       Alert.alert(
         "تم تأكيد الطلب ✅",
-        `تم إرسال طلبك بنجاح! رقم الطلب: #${orderId}\n\n🌟 تم إضافة 50 نقطة إلى رصيدك في برنامج الولاء!\n\nسيتم التواصل معك قريباً.`,
+        `تم إرسال طلبك بنجاح! رقم الطلب: #${orderId}\n\n🌟 تم إضافة ${earnedPoints} نقطة إلى رصيدك في برنامج الولاء!\n\nسيتم التواصل معك قريباً.`,
         [{ text: "حسناً", onPress: () => router.replace("/(tabs)/profile" as any) }]
       );
     } catch (e) {

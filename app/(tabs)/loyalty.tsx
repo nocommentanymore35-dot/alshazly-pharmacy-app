@@ -5,7 +5,7 @@ import { useAppStore, LoyaltyTransaction } from "@/lib/store";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-const POINTS_PER_ORDER = 50;
+// 1 point per 1 EGP spent
 
 export default function LoyaltyScreen() {
   const { state } = useAppStore();
@@ -88,8 +88,8 @@ export default function LoyaltyScreen() {
               <Text style={styles.stepNumberText}>2</Text>
             </View>
             <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>اكسب {POINTS_PER_ORDER} نقطة</Text>
-              <Text style={styles.stepDesc}>تحصل على {POINTS_PER_ORDER} نقطة مع كل عملية شراء تلقائياً</Text>
+              <Text style={styles.stepTitle}>اكسب نقاط على كل جنيه</Text>
+              <Text style={styles.stepDesc}>كل جنيه تصرفه = نقطة واحدة تلقائياً في رصيدك</Text>
             </View>
           </View>
 
@@ -120,7 +120,7 @@ export default function LoyaltyScreen() {
           <View style={styles.drawHighlight}>
             <MaterialIcons name="info-outline" size={18} color="#2563EB" />
             <Text style={styles.drawHighlightText}>
-              كل {POINTS_PER_ORDER} نقطة = فرصة إضافية في السحب
+              كلما زادت نقاطك، زادت فرصتك في الفوز!
             </Text>
           </View>
         </View>
@@ -139,7 +139,7 @@ export default function LoyaltyScreen() {
       <MaterialIcons name="stars" size={56} color="#D1D5DB" />
       <Text style={styles.emptyTitle}>لا توجد نقاط بعد</Text>
       <Text style={styles.emptyDesc}>
-        قم بإتمام أول طلب لتحصل على {POINTS_PER_ORDER} نقطة!
+  قم بإتمام أول طلب لتبدأ في كسب النقاط!
       </Text>
     </View>
   );
