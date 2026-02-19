@@ -56,7 +56,7 @@ export default function CheckoutScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="arrow-forward" size={24} color="#1A3C6E" />
+            <MaterialIcons name="arrow-forward" size={24} color="#4169E1" />
           </Pressable>
           <Text style={styles.headerTitle}>إتمام الطلب</Text>
           <View style={{ width: 40 }} />
@@ -119,9 +119,9 @@ export default function CheckoutScreen() {
               <View style={[styles.radio, paymentMethod === "cash" && styles.radioActive]}>
                 {paymentMethod === "cash" && <View style={styles.radioInner} />}
               </View>
-              <MaterialIcons name="payments" size={24} color={paymentMethod === "cash" ? "#1A3C6E" : "#6B7280"} />
+              <MaterialIcons name="payments" size={24} color={paymentMethod === "cash" ? "#4169E1" : "#6B7280"} />
               <View style={{ flex: 1, marginHorizontal: 12 }}>
-                <Text style={[styles.paymentTitle, paymentMethod === "cash" && { color: "#1A3C6E" }]}>
+                <Text style={[styles.paymentTitle, paymentMethod === "cash" && { color: "#4169E1" }]}>
                   الدفع عند الاستلام
                 </Text>
                 <Text style={styles.paymentDesc}>ادفع نقداً عند استلام الطلب</Text>
@@ -198,30 +198,30 @@ const styles = StyleSheet.create({
   },
   orderItemName: { fontSize: 14, fontWeight: "600", color: "#1F2937", textAlign: "right" },
   orderItemQty: { fontSize: 12, color: "#6B7280", textAlign: "right" },
-  orderItemPrice: { fontSize: 14, fontWeight: "bold", color: "#1A3C6E" },
+  orderItemPrice: { fontSize: 14, fontWeight: "bold", color: "#4169E1" },
   totalRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingTop: 12, marginTop: 4,
   },
   totalLabel: { fontSize: 16, fontWeight: "bold", color: "#1F2937" },
-  totalAmount: { fontSize: 20, fontWeight: "bold", color: "#1A3C6E" },
+  totalAmount: { fontSize: 20, fontWeight: "bold", color: "#4169E1" },
   paymentOption: {
     flexDirection: "row", alignItems: "center", backgroundColor: "#fff",
     borderRadius: 12, padding: 16, borderWidth: 1.5, borderColor: "#E5E7EB", marginBottom: 12,
   },
-  paymentOptionActive: { borderColor: "#1A3C6E", backgroundColor: "#F0F4FF" },
+  paymentOptionActive: { borderColor: "#4169E1", backgroundColor: "#F0F4FF" },
   radio: {
     width: 22, height: 22, borderRadius: 11, borderWidth: 2,
     borderColor: "#D1D5DB", justifyContent: "center", alignItems: "center",
   },
-  radioActive: { borderColor: "#1A3C6E" },
-  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#1A3C6E" },
+  radioActive: { borderColor: "#4169E1" },
+  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#4169E1" },
   paymentTitle: { fontSize: 15, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   paymentDesc: { fontSize: 12, color: "#6B7280", marginTop: 2, textAlign: "right" },
   bottomBar: { padding: 16, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#E5E7EB" },
   submitBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    backgroundColor: "#1A3C6E", borderRadius: 12, paddingVertical: 16, gap: 8,
+    backgroundColor: "#4169E1", borderRadius: 12, paddingVertical: 16, gap: 8,
   },
   submitText: { color: "#fff", fontSize: 17, fontWeight: "bold" },
 });

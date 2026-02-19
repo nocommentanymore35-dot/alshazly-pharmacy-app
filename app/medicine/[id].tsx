@@ -21,7 +21,7 @@ export default function MedicineDetailScreen() {
     return (
       <ScreenContainer edges={["top", "left", "right", "bottom"]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#1A3C6E" />
+          <ActivityIndicator size="large" color="#4169E1" />
         </View>
       </ScreenContainer>
     );
@@ -70,7 +70,7 @@ export default function MedicineDetailScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="arrow-forward" size={24} color="#1A3C6E" />
+            <MaterialIcons name="arrow-forward" size={24} color="#4169E1" />
           </Pressable>
           <Text style={styles.headerTitle}>تفاصيل الدواء</Text>
           <Pressable onPress={handleToggleFavorite} style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.7 }]}>
@@ -84,7 +84,7 @@ export default function MedicineDetailScreen() {
             <Image source={{ uri: medicine.imageUrl }} style={styles.image} contentFit="cover" />
           ) : (
             <View style={[styles.image, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
-              <MaterialIcons name="medication" size={80} color="#1A3C6E" />
+              <MaterialIcons name="medication" size={80} color="#4169E1" />
             </View>
           )}
 
@@ -120,14 +120,14 @@ export default function MedicineDetailScreen() {
               onPress={() => setQuantity(q => Math.max(1, q - 1))}
               style={({ pressed }) => [styles.qtyBtn, pressed && { opacity: 0.7 }]}
             >
-              <MaterialIcons name="remove" size={20} color="#1A3C6E" />
+              <MaterialIcons name="remove" size={20} color="#4169E1" />
             </Pressable>
             <Text style={styles.qtyText}>{quantity}</Text>
             <Pressable
               onPress={() => setQuantity(q => q + 1)}
               style={({ pressed }) => [styles.qtyBtn, pressed && { opacity: 0.7 }]}
             >
-              <MaterialIcons name="add" size={20} color="#1A3C6E" />
+              <MaterialIcons name="add" size={20} color="#4169E1" />
             </Pressable>
           </View>
 
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { fontSize: 16, color: "#6B7280" },
-  backButton: { marginTop: 16, backgroundColor: "#1A3C6E", paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
+  backButton: { marginTop: 16, backgroundColor: "#4169E1", paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
   backButtonText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
   infoSection: { padding: 16 },
   nameAr: { fontSize: 22, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   nameEn: { fontSize: 14, color: "#6B7280", marginTop: 4, textAlign: "right" },
-  price: { fontSize: 24, fontWeight: "bold", color: "#1A3C6E", marginTop: 12, textAlign: "right" },
+  price: { fontSize: 24, fontWeight: "bold", color: "#4169E1", marginTop: 12, textAlign: "right" },
   descSection: { marginTop: 20 },
   descTitle: { fontSize: 16, fontWeight: "bold", color: "#1F2937", marginBottom: 8, textAlign: "right" },
   descText: { fontSize: 14, color: "#4B5563", lineHeight: 22, textAlign: "right" },
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   qtyText: { fontSize: 18, fontWeight: "bold", color: "#1F2937", minWidth: 32, textAlign: "center" },
   addToCartBtn: {
     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
-    backgroundColor: "#1A3C6E", borderRadius: 12, paddingVertical: 14, gap: 8,
+    backgroundColor: "#4169E1", borderRadius: 12, paddingVertical: 14, gap: 8,
   },
   addToCartBtnDisabled: { backgroundColor: "#9CA3AF" },
   addToCartText: { color: "#fff", fontSize: 15, fontWeight: "bold" },

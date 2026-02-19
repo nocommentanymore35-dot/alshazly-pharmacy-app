@@ -56,13 +56,13 @@ export default function AdminScreen() {
 
   if (!state.isAdminLoggedIn) {
     return (
-      <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#1A3C6E]">
+      <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>لوحة الإدارة</Text>
           </View>
           <View style={styles.loginContainer}>
-            <MaterialIcons name="admin-panel-settings" size={64} color="#1A3C6E" />
+            <MaterialIcons name="admin-panel-settings" size={64} color="#4169E1" />
             <Text style={styles.loginTitle}>تسجيل دخول الإدارة</Text>
             <Text style={styles.loginHint}>هذا القسم خاص بإدارة الصيدلية فقط</Text>
 
@@ -115,7 +115,7 @@ export default function AdminScreen() {
   }
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#1A3C6E]">
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>لوحة الإدارة</Text>
@@ -145,7 +145,7 @@ export default function AdminScreen() {
                 pressed && { opacity: 0.8 },
               ]}
             >
-              <MaterialIcons name={tab.icon as any} size={18} color={activeTab === tab.key ? "#1A3C6E" : "#6B7280"} />
+              <MaterialIcons name={tab.icon as any} size={18} color={activeTab === tab.key ? "#4169E1" : "#6B7280"} />
               <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
             </Pressable>
           ))}
@@ -179,7 +179,7 @@ function OrdersManagement() {
     }
   };
 
-  if (ordersQuery.isLoading) return <ActivityIndicator size="large" color="#1A3C6E" style={{ marginTop: 40 }} />;
+  if (ordersQuery.isLoading) return <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 40 }} />;
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -571,7 +571,7 @@ function ReportsView() {
   const reportsQuery = trpc.reports.sales.useQuery();
   const report = reportsQuery.data;
 
-  if (reportsQuery.isLoading) return <ActivityIndicator size="large" color="#1A3C6E" style={{ marginTop: 40 }} />;
+  if (reportsQuery.isLoading) return <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 40 }} />;
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -611,7 +611,7 @@ function ReportsView() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9FAFB" },
   header: {
-    backgroundColor: "#1A3C6E", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
+    backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   },
   loginField: { flex: 1, fontSize: 15, color: "#1F2937", textAlign: "right", marginHorizontal: 8 },
   loginBtn: {
-    backgroundColor: "#1A3C6E", borderRadius: 12, paddingVertical: 14,
+    backgroundColor: "#4169E1", borderRadius: 12, paddingVertical: 14,
     width: "100%", alignItems: "center", marginTop: 8,
   },
   loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
@@ -641,13 +641,13 @@ const styles = StyleSheet.create({
   },
   tabItemActive: { backgroundColor: "#EFF6FF" },
   tabLabel: { fontSize: 13, color: "#6B7280", fontWeight: "600" },
-  tabLabelActive: { color: "#1A3C6E" },
+  tabLabelActive: { color: "#4169E1" },
   adminBody: { flex: 1, padding: 16 },
   adminSectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 12, textAlign: "right" },
   adminHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   addBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#1A3C6E", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
+    backgroundColor: "#4169E1", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
   },
   addBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
   adminEmpty: { alignItems: "center", paddingVertical: 40 },
@@ -667,13 +667,13 @@ const styles = StyleSheet.create({
   editBtnText: { fontSize: 13, color: "#2563EB", fontWeight: "600" },
   delBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 6 },
   delBtnText: { fontSize: 13, color: "#DC2626", fontWeight: "600" },
-  medPrice: { fontSize: 15, fontWeight: "bold", color: "#1A3C6E" },
+  medPrice: { fontSize: 15, fontWeight: "bold", color: "#4169E1" },
   statusButtons: { flexDirection: "row", flexWrap: "wrap", gap: 6, borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingTop: 8 },
   statusBtn: {
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6,
     borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB",
   },
-  statusBtnActive: { backgroundColor: "#1A3C6E", borderColor: "#1A3C6E" },
+  statusBtnActive: { backgroundColor: "#4169E1", borderColor: "#4169E1" },
   statusBtnText: { fontSize: 11, color: "#6B7280", fontWeight: "600" },
   statusBtnTextActive: { color: "#fff" },
   // Form
@@ -692,11 +692,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16,
     borderWidth: 1, borderColor: "#E5E7EB", marginRight: 6,
   },
-  catChipActive: { backgroundColor: "#1A3C6E", borderColor: "#1A3C6E" },
+  catChipActive: { backgroundColor: "#4169E1", borderColor: "#4169E1" },
   catChipText: { fontSize: 13, color: "#6B7280" },
   catChipTextActive: { color: "#fff" },
   saveFormBtn: {
-    backgroundColor: "#1A3C6E", borderRadius: 10, paddingVertical: 12,
+    backgroundColor: "#4169E1", borderRadius: 10, paddingVertical: 12,
     alignItems: "center", marginTop: 4,
   },
   saveFormBtnText: { color: "#fff", fontSize: 15, fontWeight: "bold" },
@@ -715,6 +715,6 @@ const styles = StyleSheet.create({
   },
   reportRowLabel: { fontSize: 14, fontWeight: "600", color: "#1F2937" },
   reportRowValues: { alignItems: "flex-end" },
-  reportRowCount: { fontSize: 14, fontWeight: "bold", color: "#1A3C6E" },
+  reportRowCount: { fontSize: 14, fontWeight: "bold", color: "#4169E1" },
   reportRowRevenue: { fontSize: 12, color: "#6B7280" },
 });

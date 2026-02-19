@@ -242,6 +242,13 @@ export async function updateOrderStatus(id: number, status: "received" | "prepar
 
 // ===== ADMIN FUNCTIONS =====
 export async function verifyAdmin(username: string, password: string) {
+  // Check env vars first
+  const envUser = process.env.ADMIN_USERNAME;
+  const envPass = process.env.ADMIN_PASSWORD;
+  if (envUser && envPass) {
+    return username === envUser && password === envPass;
+  }
+  // Fallback to database
   const db = await getDb();
   if (!db) return false;
   const result = await db.select().from(adminCredentials).where(

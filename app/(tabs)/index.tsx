@@ -82,7 +82,7 @@ export default function HomeScreen() {
       {item.imageUrl ? (
         <Image source={{ uri: item.imageUrl }} style={styles.bannerImage} contentFit="cover" />
       ) : (
-        <View style={[styles.bannerImage, { backgroundColor: "#1A3C6E", justifyContent: "center", alignItems: "center" }]}>
+        <View style={[styles.bannerImage, { backgroundColor: "#4169E1", justifyContent: "center", alignItems: "center" }]}>
           <MaterialIcons name="local-pharmacy" size={48} color="#fff" />
         </View>
       )}
@@ -105,7 +105,7 @@ export default function HomeScreen() {
         <Image source={{ uri: item.imageUrl }} style={styles.medicineImage} contentFit="cover" />
       ) : (
         <View style={[styles.medicineImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
-          <MaterialIcons name="medication" size={40} color="#1A3C6E" />
+          <MaterialIcons name="medication" size={40} color="#4169E1" />
         </View>
       )}
       <View style={styles.medicineInfo}>
@@ -132,7 +132,7 @@ export default function HomeScreen() {
   );
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#1A3C6E]">
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
       <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
@@ -165,7 +165,7 @@ export default function HomeScreen() {
         <ScrollView
           style={styles.body}
           showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1A3C6E" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4169E1" />}
         >
           {/* Banners */}
           {banners.length > 0 && (
@@ -238,7 +238,7 @@ export default function HomeScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>الأدوية ({displayMedicines.length})</Text>
             {(medicinesQuery.isLoading || searchMedicinesQuery.isLoading || categoryMedicinesQuery.isLoading) ? (
-              <ActivityIndicator size="large" color="#1A3C6E" style={{ marginTop: 20 }} />
+              <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 20 }} />
             ) : displayMedicines.length === 0 ? (
               <View style={styles.emptyState}>
                 <MaterialIcons name="medication" size={48} color="#D1D5DB" />
@@ -263,7 +263,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  header: { backgroundColor: "#1A3C6E", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16 },
+  header: { backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16 },
   headerContent: { alignItems: "center", marginBottom: 12 },
   headerTitle: { fontSize: 24, fontWeight: "bold", color: "#fff", textAlign: "center" },
   headerSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 4, textAlign: "center" },
@@ -290,16 +290,16 @@ const styles = StyleSheet.create({
   bannerButtonText: { color: "#fff", fontSize: 13, fontWeight: "600" },
   dotsContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10, gap: 6 },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#D1D5DB" },
-  dotActive: { backgroundColor: "#1A3C6E", width: 20 },
+  dotActive: { backgroundColor: "#4169E1", width: 20 },
   bannerCount: { textAlign: "center", fontSize: 12, color: "#6B7280", marginTop: 4 },
   section: { marginTop: 20, paddingHorizontal: 16 },
   sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 12, textAlign: "right" },
   categoryChip: {
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1.5, borderColor: "#1A3C6E", backgroundColor: "#fff",
+    borderWidth: 1.5, borderColor: "#4169E1", backgroundColor: "#fff",
   },
-  categoryChipActive: { backgroundColor: "#1A3C6E" },
-  categoryChipText: { fontSize: 14, fontWeight: "600", color: "#1A3C6E" },
+  categoryChipActive: { backgroundColor: "#4169E1" },
+  categoryChipText: { fontSize: 14, fontWeight: "600", color: "#4169E1" },
   categoryChipTextActive: { color: "#fff" },
   medicineCard: {
     flexDirection: "row", backgroundColor: "#fff", borderRadius: 12,
@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   medicineInfo: { flex: 1, marginHorizontal: 12, justifyContent: "center" },
   medicineName: { fontSize: 16, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   medicineNameEn: { fontSize: 12, color: "#6B7280", marginTop: 2, textAlign: "right" },
-  medicinePrice: { fontSize: 16, fontWeight: "bold", color: "#1A3C6E", marginTop: 6, textAlign: "right" },
+  medicinePrice: { fontSize: 16, fontWeight: "bold", color: "#4169E1", marginTop: 6, textAlign: "right" },
   medicineActions: { justifyContent: "center", alignItems: "center" },
   actionBtn: { padding: 8 },
   emptyState: { alignItems: "center", paddingVertical: 40 },
