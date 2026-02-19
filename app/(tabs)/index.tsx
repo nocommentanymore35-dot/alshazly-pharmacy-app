@@ -160,14 +160,8 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </View>
-        </View>
 
-        <ScrollView
-          style={styles.body}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4169E1" />}
-        >
-          {/* Banners */}
+          {/* Banners - directly under search */}
           {banners.length > 0 && (
             <View style={styles.bannerSection}>
               <FlatList
@@ -198,10 +192,15 @@ export default function HomeScreen() {
                   <View key={i} style={[styles.dot, i === currentBanner && styles.dotActive]} />
                 ))}
               </View>
-              <Text style={styles.bannerCount}>{currentBanner + 1} من {banners.length}</Text>
             </View>
           )}
+        </View>
 
+        <ScrollView
+          style={styles.body}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4169E1" />}
+        >
           {/* Categories */}
           {categories.length > 0 && (
             <View style={styles.section}>
@@ -273,7 +272,7 @@ const styles = StyleSheet.create({
   },
   searchInput: { flex: 1, fontSize: 15, color: "#1F2937", textAlign: "right", paddingHorizontal: 8 },
   body: { flex: 1, backgroundColor: "#fff" },
-  bannerSection: { marginTop: 16 },
+  bannerSection: { marginTop: 12, paddingBottom: 8 },
   bannerItem: { width: BANNER_WIDTH, height: BANNER_HEIGHT, borderRadius: 12, overflow: "hidden" },
   bannerImage: { width: "100%", height: "100%", borderRadius: 12 },
   bannerOverlay: {
@@ -289,9 +288,8 @@ const styles = StyleSheet.create({
   },
   bannerButtonText: { color: "#fff", fontSize: 13, fontWeight: "600" },
   dotsContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10, gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#D1D5DB" },
-  dotActive: { backgroundColor: "#4169E1", width: 20 },
-  bannerCount: { textAlign: "center", fontSize: 12, color: "#6B7280", marginTop: 4 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.4)" },
+  dotActive: { backgroundColor: "#fff", width: 20 },
   section: { marginTop: 20, paddingHorizontal: 16 },
   sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 12, textAlign: "right" },
   categoryChip: {
