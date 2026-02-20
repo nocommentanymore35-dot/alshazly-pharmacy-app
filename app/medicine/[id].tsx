@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   headerBtn: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937" },
   body: { flex: 1 },
-  image: { width: "100%", height: 250 },
+  image: { width: "100%", height: 200, borderBottomLeftRadius: 16, borderBottomRightRadius: 16 },
   infoSection: { padding: 16 },
   nameAr: { fontSize: 22, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   nameEn: { fontSize: 14, color: "#6B7280", marginTop: 4, textAlign: "right" },
