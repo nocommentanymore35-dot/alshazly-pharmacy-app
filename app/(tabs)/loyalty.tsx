@@ -8,9 +8,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 // 1 point per 1 EGP spent
 
 export default function LoyaltyScreen() {
-  const { state } = useAppStore();
+  const { state, dismissResetBanner } = useAppStore();
   const insets = useSafeAreaInsets();
-  const { totalPoints, transactions } = state.loyalty;
+  const { totalPoints, transactions, archivedYears } = state.loyalty;
+  const { showNewYearResetBanner, resetBannerPreviousPoints } = state;
+  const [expandedArchiveYear, setExpandedArchiveYear] = useState<number | null>(null);
 
   const currentYear = new Date().getFullYear();
   const yearTransactions = transactions.filter(t => {
@@ -70,6 +72,28 @@ export default function LoyaltyScreen() {
 
   const ListHeader = () => (
     <View>
+      {/* New Year Reset Banner */}
+      {showNewYearResetBanner && (
+        <View style={styles.resetBanner}>
+          <View style={styles.resetBannerContent}>
+            <View style={styles.resetBannerIconRow}>
+              <MaterialIcons name="celebration" size={28} color="#FFD700" />
+              <Text style={styles.resetBannerTitle}>عام جديد سعيد! 🎉</Text>
+            </View>
+            <Text style={styles.resetBannerText}>
+              تم أرشفة {resetBannerPreviousPoints} نقطة من العام السابق وبدأ موسم جديد لبرنامج الولاء. ابدأ بجمع النقاط الآن!
+            </Text>
+            <TouchableOpacity
+              style={styles.resetBannerButton}
+              activeOpacity={0.8}
+              onPress={dismissResetBanner}
+            >
+              <Text style={styles.resetBannerButtonText}>حسناً، فهمت!</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* Points Card */}
       <View style={styles.pointsCard}>
         <View style={styles.pointsCardBg}>
@@ -202,9 +226,62 @@ export default function LoyaltyScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* Archived Years */}
+      {archivedYears && archivedYears.length > 0 && (
+        <View style={styles.archiveSection}>
+          <View style={styles.archiveHeader}>
+            <MaterialIcons name="history" size={22} color="#6B7280" />
+            <Text style={styles.archiveSectionTitle}>أرشيف الأعوام السابقة</Text>
+          </View>
+          {archivedYears.slice().reverse().map((archive) => (
+            <View key={archive.year} style={styles.archiveCard}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.archiveCardHeader}
+                onPress={() => setExpandedArchiveYear(expandedArchiveYear === archive.year ? null : archive.year)}
+              >
+                <View style={styles.archiveYearBadge}>
+                  <Text style={styles.archiveYearText}>{archive.year}</Text>
+                </View>
+                <View style={styles.archiveCardInfo}>
+                  <Text style={styles.archivePointsText}>{archive.totalPoints} نقطة</Text>
+                  <Text style={styles.archiveTxCount}>{archive.transactions.length} عملية</Text>
+                </View>
+                <MaterialIcons
+                  name={expandedArchiveYear === archive.year ? "keyboard-arrow-up" : "keyboard-arrow-down"}
+                  size={24}
+                  color="#6B7280"
+                />
+              </TouchableOpacity>
+              {expandedArchiveYear === archive.year && (
+                <View style={styles.archiveTransactions}>
+                  {archive.transactions.length === 0 ? (
+                    <Text style={styles.archiveEmptyText}>لا توجد عمليات في هذا العام</Text>
+                  ) : (
+                    archive.transactions.slice(0, 10).map((tx) => (
+                      <View key={tx.id} style={styles.archiveTxItem}>
+                        <View style={styles.archiveTxDot} />
+                        <View style={styles.archiveTxInfo}>
+                          <Text style={styles.archiveTxDesc}>{tx.description}</Text>
+                          <Text style={styles.archiveTxDate}>{formatDate(tx.date)}</Text>
+                        </View>
+                        <Text style={styles.archiveTxPoints}>+{tx.points}</Text>
+                      </View>
+                    ))
+                  )}
+                  {archive.transactions.length > 10 && (
+                    <Text style={styles.archiveMoreText}>و {archive.transactions.length - 10} عملية أخرى...</Text>
+                  )}
+                </View>
+              )}
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Transactions Header */}
       <View style={styles.txHeader}>
-        <Text style={styles.txHeaderTitle}>سجل النقاط</Text>
+        <Text style={styles.txHeaderTitle}>سجل النقاط - {currentYear}</Text>
         <Text style={styles.txHeaderCount}>{transactions.length} عملية</Text>
       </View>
     </View>
@@ -358,6 +435,61 @@ const styles = StyleSheet.create({
   shareTextContainer: { flex: 1 },
   shareTitle: { fontSize: 16, fontWeight: "bold", color: "#fff", textAlign: "right" },
   shareDesc: { fontSize: 13, color: "rgba(255,255,255,0.8)", textAlign: "right", marginTop: 2 },
+
+  // Reset Banner
+  resetBanner: { paddingHorizontal: 16, paddingTop: 16 },
+  resetBannerContent: {
+    backgroundColor: "#065F46", borderRadius: 16, padding: 20,
+    borderWidth: 2, borderColor: "#34D399",
+  },
+  resetBannerIconRow: {
+    flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 10,
+  },
+  resetBannerTitle: { fontSize: 18, fontWeight: "bold", color: "#FFD700" },
+  resetBannerText: {
+    fontSize: 14, color: "#D1FAE5", lineHeight: 22, textAlign: "right", marginBottom: 14,
+  },
+  resetBannerButton: {
+    backgroundColor: "#34D399", borderRadius: 10, paddingVertical: 10,
+    alignItems: "center",
+  },
+  resetBannerButtonText: { fontSize: 15, fontWeight: "bold", color: "#065F46" },
+
+  // Archive
+  archiveSection: { paddingHorizontal: 16, paddingTop: 24 },
+  archiveHeader: {
+    flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12,
+  },
+  archiveSectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
+  archiveCard: {
+    backgroundColor: "#fff", borderRadius: 14, marginBottom: 10,
+    borderWidth: 1, borderColor: "#E5E7EB", overflow: "hidden",
+  },
+  archiveCardHeader: {
+    flexDirection: "row", alignItems: "center", padding: 16, gap: 12,
+  },
+  archiveYearBadge: {
+    backgroundColor: "#1E3A5F", borderRadius: 10, paddingHorizontal: 14, paddingVertical: 6,
+  },
+  archiveYearText: { fontSize: 16, fontWeight: "bold", color: "#FFD700" },
+  archiveCardInfo: { flex: 1 },
+  archivePointsText: { fontSize: 16, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
+  archiveTxCount: { fontSize: 12, color: "#9CA3AF", textAlign: "right", marginTop: 2 },
+  archiveTransactions: {
+    borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingVertical: 8, paddingHorizontal: 16,
+  },
+  archiveEmptyText: { fontSize: 13, color: "#9CA3AF", textAlign: "center", paddingVertical: 12 },
+  archiveTxItem: {
+    flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8,
+  },
+  archiveTxDot: {
+    width: 8, height: 8, borderRadius: 4, backgroundColor: "#D1D5DB",
+  },
+  archiveTxInfo: { flex: 1 },
+  archiveTxDesc: { fontSize: 13, fontWeight: "500", color: "#4B5563", textAlign: "right" },
+  archiveTxDate: { fontSize: 11, color: "#9CA3AF", textAlign: "right", marginTop: 2 },
+  archiveTxPoints: { fontSize: 14, fontWeight: "bold", color: "#6B7280" },
+  archiveMoreText: { fontSize: 12, color: "#9CA3AF", textAlign: "center", paddingVertical: 8 },
 
   // Empty
   emptyContainer: { alignItems: "center", paddingVertical: 40, gap: 8 },

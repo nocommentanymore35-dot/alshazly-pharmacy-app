@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 
 // Test the loyalty reset logic by simulating the reducer behavior
-// We replicate the reducer logic here to test it in isolation
 
 interface LoyaltyTransaction {
   id: string;
@@ -18,19 +17,30 @@ interface LoyaltyState {
   archivedYears?: { year: number; totalPoints: number; transactions: LoyaltyTransaction[] }[];
 }
 
-function resetLoyaltyYear(loyalty: LoyaltyState, newYear: number): LoyaltyState {
+interface ResetResult {
+  loyalty: LoyaltyState;
+  showNewYearResetBanner: boolean;
+  resetBannerPreviousPoints: number;
+}
+
+function resetLoyaltyYear(loyalty: LoyaltyState, newYear: number): ResetResult {
   const prevYear = newYear - 1;
+  const prevPoints = loyalty.totalPoints;
   const archivedEntry = {
     year: prevYear,
-    totalPoints: loyalty.totalPoints,
+    totalPoints: prevPoints,
     transactions: loyalty.transactions,
   };
   const existingArchives = loyalty.archivedYears || [];
   return {
-    totalPoints: 0,
-    transactions: [],
-    lastResetYear: newYear,
-    archivedYears: [...existingArchives, archivedEntry],
+    loyalty: {
+      totalPoints: 0,
+      transactions: [],
+      lastResetYear: newYear,
+      archivedYears: [...existingArchives, archivedEntry],
+    },
+    showNewYearResetBanner: prevPoints > 0,
+    resetBannerPreviousPoints: prevPoints,
   };
 }
 
@@ -66,9 +76,9 @@ describe("Loyalty Annual Reset", () => {
 
     const result = resetLoyaltyYear(loyalty, 2026);
 
-    expect(result.totalPoints).toBe(0);
-    expect(result.transactions).toHaveLength(0);
-    expect(result.lastResetYear).toBe(2026);
+    expect(result.loyalty.totalPoints).toBe(0);
+    expect(result.loyalty.transactions).toHaveLength(0);
+    expect(result.loyalty.lastResetYear).toBe(2026);
   });
 
   it("should archive previous year's data", () => {
@@ -83,11 +93,11 @@ describe("Loyalty Annual Reset", () => {
 
     const result = resetLoyaltyYear(loyalty, 2026);
 
-    expect(result.archivedYears).toBeDefined();
-    expect(result.archivedYears).toHaveLength(1);
-    expect(result.archivedYears![0].year).toBe(2025);
-    expect(result.archivedYears![0].totalPoints).toBe(750);
-    expect(result.archivedYears![0].transactions).toHaveLength(2);
+    expect(result.loyalty.archivedYears).toBeDefined();
+    expect(result.loyalty.archivedYears).toHaveLength(1);
+    expect(result.loyalty.archivedYears![0].year).toBe(2025);
+    expect(result.loyalty.archivedYears![0].totalPoints).toBe(750);
+    expect(result.loyalty.archivedYears![0].transactions).toHaveLength(2);
   });
 
   it("should preserve existing archives when resetting again", () => {
@@ -104,12 +114,12 @@ describe("Loyalty Annual Reset", () => {
 
     const result = resetLoyaltyYear(loyalty, 2027);
 
-    expect(result.archivedYears).toHaveLength(2);
-    expect(result.archivedYears![0].year).toBe(2025);
-    expect(result.archivedYears![1].year).toBe(2026);
-    expect(result.archivedYears![1].totalPoints).toBe(200);
-    expect(result.totalPoints).toBe(0);
-    expect(result.lastResetYear).toBe(2027);
+    expect(result.loyalty.archivedYears).toHaveLength(2);
+    expect(result.loyalty.archivedYears![0].year).toBe(2025);
+    expect(result.loyalty.archivedYears![1].year).toBe(2026);
+    expect(result.loyalty.archivedYears![1].totalPoints).toBe(200);
+    expect(result.loyalty.totalPoints).toBe(0);
+    expect(result.loyalty.lastResetYear).toBe(2027);
   });
 
   it("should detect when reset is needed (lastResetYear < currentYear)", () => {
@@ -135,16 +145,105 @@ describe("Loyalty Annual Reset", () => {
       lastResetYear: 2025,
     };
 
-    // Reset for new year
     const afterReset = resetLoyaltyYear(loyalty, 2026);
-    expect(afterReset.totalPoints).toBe(0);
+    expect(afterReset.loyalty.totalPoints).toBe(0);
 
-    // Add new points in the new year
-    const afterPoints = addLoyaltyPoints(afterReset, 100, "طلب جديد في 2026");
+    const afterPoints = addLoyaltyPoints(afterReset.loyalty, 100, "طلب جديد في 2026");
     expect(afterPoints.totalPoints).toBe(100);
     expect(afterPoints.transactions).toHaveLength(1);
-    // Archives should still be preserved
     expect(afterPoints.archivedYears).toHaveLength(1);
     expect(afterPoints.archivedYears![0].year).toBe(2025);
+  });
+});
+
+describe("Reset Banner", () => {
+  it("should show banner when reset happens with points > 0", () => {
+    const loyalty: LoyaltyState = {
+      totalPoints: 300,
+      transactions: [
+        { id: "t1", date: "2025-06-15T10:00:00Z", points: 300, description: "طلب" },
+      ],
+      lastResetYear: 2025,
+    };
+
+    const result = resetLoyaltyYear(loyalty, 2026);
+
+    expect(result.showNewYearResetBanner).toBe(true);
+    expect(result.resetBannerPreviousPoints).toBe(300);
+  });
+
+  it("should NOT show banner when reset happens with 0 points", () => {
+    const loyalty: LoyaltyState = {
+      totalPoints: 0,
+      transactions: [],
+      lastResetYear: 2025,
+    };
+
+    const result = resetLoyaltyYear(loyalty, 2026);
+
+    expect(result.showNewYearResetBanner).toBe(false);
+    expect(result.resetBannerPreviousPoints).toBe(0);
+  });
+
+  it("should carry correct previous points amount in banner", () => {
+    const loyalty: LoyaltyState = {
+      totalPoints: 1250,
+      transactions: [
+        { id: "t1", date: "2025-01-15T10:00:00Z", points: 500, description: "طلب #1" },
+        { id: "t2", date: "2025-06-20T10:00:00Z", points: 750, description: "طلب #2" },
+      ],
+      lastResetYear: 2025,
+    };
+
+    const result = resetLoyaltyYear(loyalty, 2026);
+
+    expect(result.resetBannerPreviousPoints).toBe(1250);
+    expect(result.loyalty.totalPoints).toBe(0);
+  });
+});
+
+describe("Archive Display", () => {
+  it("archived years should be accessible and contain correct data", () => {
+    const loyalty: LoyaltyState = {
+      totalPoints: 400,
+      transactions: [
+        { id: "t1", date: "2025-03-10T10:00:00Z", points: 150, description: "طلب #1" },
+        { id: "t2", date: "2025-08-20T10:00:00Z", points: 250, description: "طلب #2" },
+      ],
+      lastResetYear: 2025,
+    };
+
+    const result = resetLoyaltyYear(loyalty, 2026);
+    const archives = result.loyalty.archivedYears!;
+
+    expect(archives).toHaveLength(1);
+    expect(archives[0].year).toBe(2025);
+    expect(archives[0].totalPoints).toBe(400);
+    expect(archives[0].transactions).toHaveLength(2);
+    expect(archives[0].transactions[0].points).toBe(150);
+    expect(archives[0].transactions[1].points).toBe(250);
+  });
+
+  it("multiple years should be archived in order", () => {
+    // Simulate 2025 -> 2026 reset
+    const loyalty2025: LoyaltyState = {
+      totalPoints: 500,
+      transactions: [{ id: "t1", date: "2025-05-01T10:00:00Z", points: 500, description: "2025" }],
+      lastResetYear: 2025,
+    };
+    const after2026 = resetLoyaltyYear(loyalty2025, 2026);
+
+    // Add points in 2026
+    const with2026Points = addLoyaltyPoints(after2026.loyalty, 300, "طلب 2026");
+
+    // Simulate 2026 -> 2027 reset
+    const after2027 = resetLoyaltyYear(with2026Points, 2027);
+
+    const archives = after2027.loyalty.archivedYears!;
+    expect(archives).toHaveLength(2);
+    expect(archives[0].year).toBe(2025);
+    expect(archives[0].totalPoints).toBe(500);
+    expect(archives[1].year).toBe(2026);
+    expect(archives[1].totalPoints).toBe(300);
   });
 });

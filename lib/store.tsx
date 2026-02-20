@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+import * as Notifications from "expo-notifications";
 
 // Types
 export type UnitType = "strip" | "box";
@@ -54,6 +55,8 @@ interface AppState {
   customerId: number | null;
   isAdminLoggedIn: boolean;
   loyalty: LoyaltyState;
+  showNewYearResetBanner: boolean;
+  resetBannerPreviousPoints: number;
 }
 
 type Action =
@@ -68,6 +71,7 @@ type Action =
   | { type: "SET_ADMIN_LOGGED_IN"; payload: boolean }
   | { type: "ADD_LOYALTY_POINTS"; payload: { points: number; description: string; orderId?: number } }
   | { type: "RESET_LOYALTY_YEAR"; payload: { year: number } }
+  | { type: "DISMISS_RESET_BANNER" }
   | { type: "LOAD_STATE"; payload: Partial<AppState> };
 
 const initialState: AppState = {
@@ -78,6 +82,8 @@ const initialState: AppState = {
   customerId: null,
   isAdminLoggedIn: false,
   loyalty: { totalPoints: 0, transactions: [] },
+  showNewYearResetBanner: false,
+  resetBannerPreviousPoints: 0,
 };
 
 function appReducer(state: AppState, action: Action): AppState {
@@ -125,9 +131,10 @@ function appReducer(state: AppState, action: Action): AppState {
     }
     case "RESET_LOYALTY_YEAR": {
       const prevYear = action.payload.year - 1;
+      const prevPoints = state.loyalty.totalPoints;
       const archivedEntry = {
         year: prevYear,
-        totalPoints: state.loyalty.totalPoints,
+        totalPoints: prevPoints,
         transactions: state.loyalty.transactions,
       };
       const existingArchives = state.loyalty.archivedYears || [];
@@ -139,8 +146,12 @@ function appReducer(state: AppState, action: Action): AppState {
           lastResetYear: action.payload.year,
           archivedYears: [...existingArchives, archivedEntry],
         },
+        showNewYearResetBanner: prevPoints > 0,
+        resetBannerPreviousPoints: prevPoints,
       };
     }
+    case "DISMISS_RESET_BANNER":
+      return { ...state, showNewYearResetBanner: false, resetBannerPreviousPoints: 0 };
     case "LOAD_STATE":
       return { ...state, ...action.payload };
     default:
@@ -190,6 +201,7 @@ interface AppContextType {
   setProfile: (data: Partial<CustomerProfile>) => void;
   setAdminLoggedIn: (value: boolean) => void;
   addLoyaltyPoints: (points: number, description: string, orderId?: number) => void;
+  dismissResetBanner: () => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -198,6 +210,34 @@ const STORAGE_KEY = "pharmacy_app_state";
 
 function generateDeviceId(): string {
   return "device_" + Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
+}
+
+// Send local notification when loyalty points are reset
+async function sendYearResetNotification(newYear: number, previousPoints: number) {
+  try {
+    if (Platform.OS === "android") {
+      await Notifications.setNotificationChannelAsync("loyalty", {
+        name: "برنامج الولاء",
+        importance: Notifications.AndroidImportance.HIGH,
+        vibrationPattern: [0, 250, 250, 250],
+      });
+    }
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") {
+      const { status: newStatus } = await Notifications.requestPermissionsAsync();
+      if (newStatus !== "granted") return;
+    }
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `عام جديد سعيد ${newYear}! 🎉`,
+        body: `تم أرشفة ${previousPoints} نقطة من العام السابق وبدأ موسم جديد لبرنامج الولاء. ابدأ بجمع النقاط الآن!`,
+        data: { type: "loyalty_reset", year: newYear },
+      },
+      trigger: null, // immediate
+    });
+  } catch (e) {
+    // Notification failed silently - not critical
+  }
 }
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
@@ -226,9 +266,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           // Check for annual loyalty reset
           const currentYear = new Date().getFullYear();
           const lastResetYear = parsed.loyalty?.lastResetYear || 0;
+          let didReset = false;
           if (lastResetYear > 0 && lastResetYear < currentYear) {
             // New year detected - reset loyalty points
             dispatch({ type: "RESET_LOYALTY_YEAR", payload: { year: currentYear } });
+            didReset = true;
           } else if (lastResetYear === 0 && parsed.loyalty?.transactions?.length > 0) {
             // First time: check if there are transactions from a previous year
             const oldestTxYear = parsed.loyalty.transactions.reduce((min: number, t: any) => {
@@ -237,7 +279,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             }, currentYear);
             if (oldestTxYear < currentYear) {
               dispatch({ type: "RESET_LOYALTY_YEAR", payload: { year: currentYear } });
+              didReset = true;
             }
+          }
+          // Send local notification on reset
+          if (didReset && parsed.loyalty?.totalPoints > 0) {
+            sendYearResetNotification(currentYear, parsed.loyalty.totalPoints);
           }
         } else {
           const id = generateDeviceId();
@@ -278,12 +325,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const setProfile = useCallback((data: Partial<CustomerProfile>) => dispatch({ type: "SET_PROFILE", payload: data }), []);
   const setAdminLoggedIn = useCallback((value: boolean) => dispatch({ type: "SET_ADMIN_LOGGED_IN", payload: value }), []);
   const addLoyaltyPoints = useCallback((points: number, description: string, orderId?: number) => dispatch({ type: "ADD_LOYALTY_POINTS", payload: { points, description, orderId } }), []);
+  const dismissResetBanner = useCallback(() => dispatch({ type: "DISMISS_RESET_BANNER" }), []);
 
   return (
     <AppContext.Provider value={{
       state, dispatch, addToCart, removeFromCart, clearCart,
       addToFavorites, removeFromFavorites, isFavorite, isInCart,
-      cartTotal, setProfile, setAdminLoggedIn, addLoyaltyPoints,
+      cartTotal, setProfile, setAdminLoggedIn, addLoyaltyPoints, dismissResetBanner,
     }}>
       {children}
     </AppContext.Provider>
