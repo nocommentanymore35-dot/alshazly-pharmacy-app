@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View, FlatList, StyleSheet, Platform } from "react-native";
+import { Text, View, FlatList, StyleSheet, Platform, Share, TouchableOpacity, Alert } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAppStore, LoyaltyTransaction } from "@/lib/store";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -126,6 +126,32 @@ export default function LoyaltyScreen() {
         </View>
       </View>
 
+      {/* Share App */}
+      <View style={styles.shareSection}>
+        <TouchableOpacity
+          style={styles.shareButton}
+          activeOpacity={0.8}
+          onPress={async () => {
+            try {
+              await Share.share({
+                message: "جرّب تطبيق صيدلية الشاذلي! اطلب أدويتك بسهولة واكسب نقاط ولاء مع كل طلب. حمّل التطبيق الآن!",
+              });
+            } catch (e: any) {
+              Alert.alert("خطأ", "لم يتم المشاركة");
+            }
+          }}
+        >
+          <View style={styles.shareIconContainer}>
+            <MaterialIcons name="share" size={24} color="#fff" />
+          </View>
+          <View style={styles.shareTextContainer}>
+            <Text style={styles.shareTitle}>مشاركة التطبيق مع الأصدقاء</Text>
+            <Text style={styles.shareDesc}>شارك التطبيق مع أصدقائك وعائلتك</Text>
+          </View>
+          <MaterialIcons name="chevron-right" size={24} color="#fff" style={{ opacity: 0.7 }} />
+        </TouchableOpacity>
+      </View>
+
       {/* Transactions Header */}
       <View style={styles.txHeader}>
         <Text style={styles.txHeaderTitle}>سجل النقاط</Text>
@@ -245,6 +271,21 @@ const styles = StyleSheet.create({
   txPointsContainer: { alignItems: "center" },
   txPoints: { fontSize: 18, fontWeight: "bold", color: "#22C55E" },
   txPointsLabel: { fontSize: 11, color: "#6B7280" },
+
+  // Share
+  shareSection: { paddingHorizontal: 16, paddingTop: 20 },
+  shareButton: {
+    flexDirection: "row", alignItems: "center", gap: 14,
+    backgroundColor: "#22C55E", borderRadius: 16, padding: 18,
+  },
+  shareIconContainer: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    justifyContent: "center", alignItems: "center",
+  },
+  shareTextContainer: { flex: 1 },
+  shareTitle: { fontSize: 16, fontWeight: "bold", color: "#fff", textAlign: "right" },
+  shareDesc: { fontSize: 13, color: "rgba(255,255,255,0.8)", textAlign: "right", marginTop: 2 },
 
   // Empty
   emptyContainer: { alignItems: "center", paddingVertical: 40, gap: 8 },
