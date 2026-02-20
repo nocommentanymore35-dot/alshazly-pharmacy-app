@@ -42,6 +42,8 @@ export interface LoyaltyTransaction {
 export interface LoyaltyState {
   totalPoints: number;
   transactions: LoyaltyTransaction[];
+  lastResetYear?: number; // The year of the last annual reset
+  archivedYears?: { year: number; totalPoints: number; transactions: LoyaltyTransaction[] }[];
 }
 
 interface AppState {
@@ -65,6 +67,7 @@ type Action =
   | { type: "SET_CUSTOMER_ID"; payload: number }
   | { type: "SET_ADMIN_LOGGED_IN"; payload: boolean }
   | { type: "ADD_LOYALTY_POINTS"; payload: { points: number; description: string; orderId?: number } }
+  | { type: "RESET_LOYALTY_YEAR"; payload: { year: number } }
   | { type: "LOAD_STATE"; payload: Partial<AppState> };
 
 const initialState: AppState = {
@@ -114,8 +117,27 @@ function appReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         loyalty: {
+          ...state.loyalty,
           totalPoints: state.loyalty.totalPoints + action.payload.points,
           transactions: [transaction, ...state.loyalty.transactions],
+        },
+      };
+    }
+    case "RESET_LOYALTY_YEAR": {
+      const prevYear = action.payload.year - 1;
+      const archivedEntry = {
+        year: prevYear,
+        totalPoints: state.loyalty.totalPoints,
+        transactions: state.loyalty.transactions,
+      };
+      const existingArchives = state.loyalty.archivedYears || [];
+      return {
+        ...state,
+        loyalty: {
+          totalPoints: 0,
+          transactions: [],
+          lastResetYear: action.payload.year,
+          archivedYears: [...existingArchives, archivedEntry],
         },
       };
     }
@@ -201,6 +223,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             const id = generateDeviceId();
             dispatch({ type: "SET_DEVICE_ID", payload: id });
           }
+          // Check for annual loyalty reset
+          const currentYear = new Date().getFullYear();
+          const lastResetYear = parsed.loyalty?.lastResetYear || 0;
+          if (lastResetYear > 0 && lastResetYear < currentYear) {
+            // New year detected - reset loyalty points
+            dispatch({ type: "RESET_LOYALTY_YEAR", payload: { year: currentYear } });
+          } else if (lastResetYear === 0 && parsed.loyalty?.transactions?.length > 0) {
+            // First time: check if there are transactions from a previous year
+            const oldestTxYear = parsed.loyalty.transactions.reduce((min: number, t: any) => {
+              const y = new Date(t.date).getFullYear();
+              return y < min ? y : min;
+            }, currentYear);
+            if (oldestTxYear < currentYear) {
+              dispatch({ type: "RESET_LOYALTY_YEAR", payload: { year: currentYear } });
+            }
+          }
         } else {
           const id = generateDeviceId();
           dispatch({ type: "SET_DEVICE_ID", payload: id });
@@ -221,7 +259,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         profile: state.profile,
         deviceId: state.deviceId,
         customerId: state.customerId,
-        loyalty: state.loyalty,
+        loyalty: {
+          ...state.loyalty,
+          lastResetYear: state.loyalty.lastResetYear || new Date().getFullYear(),
+        },
       }));
     }
   }, [state.cart, state.favorites, state.profile, state.deviceId, state.customerId, state.loyalty]);
