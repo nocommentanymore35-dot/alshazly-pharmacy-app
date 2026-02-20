@@ -272,6 +272,22 @@ export async function createAdminIfNotExists(username: string, password: string)
   }
 }
 
+export async function deleteOrder(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Delete order items first, then the order
+  await db.delete(orderItems).where(eq(orderItems.orderId, id));
+  await db.delete(orders).where(eq(orders.id, id));
+}
+
+export async function resetSalesReport() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Delete all order items and orders to reset reports
+  await db.delete(orderItems);
+  await db.delete(orders);
+}
+
 // ===== REPORTS FUNCTIONS =====
 export async function getSalesReport() {
   const db = await getDb();

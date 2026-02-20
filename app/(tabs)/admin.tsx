@@ -166,6 +166,7 @@ export default function AdminScreen() {
 function OrdersManagement() {
   const ordersQuery = trpc.orders.listAll.useQuery(undefined, { refetchInterval: 10000 });
   const updateStatusMutation = trpc.orders.updateStatus.useMutation();
+  const deleteOrderMutation = trpc.orders.delete.useMutation();
   const orders = ordersQuery.data ?? [];
 
   const handleStatusChange = async (orderId: number, newStatus: string) => {
@@ -176,6 +177,29 @@ function OrdersManagement() {
     } catch (e) {
       Alert.alert("خطأ", "فشل تحديث الحالة");
     }
+  };
+
+  const handleDeleteOrder = (orderId: number) => {
+    Alert.alert(
+      "حذف الطلب",
+      `هل أنت متأكد من حذف الطلب #${orderId}؟ \nلا يمكن التراجع عن هذا الإجراء.`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "حذف",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteOrderMutation.mutateAsync({ id: orderId });
+              ordersQuery.refetch();
+              Alert.alert("تم", "تم حذف الطلب بنجاح");
+            } catch (e) {
+              Alert.alert("خطأ", "فشل حذف الطلب");
+            }
+          },
+        },
+      ]
+    );
   };
 
   if (ordersQuery.isLoading) return <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />;
@@ -221,6 +245,16 @@ function OrdersManagement() {
                 </Pressable>
               ))}
             </View>
+            <Pressable
+              onPress={() => handleDeleteOrder(order.id)}
+              style={({ pressed }) => [
+                styles.deleteOrderBtn,
+                pressed && { opacity: 0.8 },
+              ]}
+            >
+              <MaterialIcons name="delete" size={18} color="#fff" />
+              <Text style={styles.deleteOrderBtnText}>حذف الطلب</Text>
+            </Pressable>
           </View>
         ))
       )}
@@ -610,7 +644,31 @@ function BannersManagement() {
 // ===== Reports View =====
 function ReportsView() {
   const reportsQuery = trpc.reports.sales.useQuery();
+  const resetMutation = trpc.reports.reset.useMutation();
   const report = reportsQuery.data;
+
+  const handleResetReport = () => {
+    Alert.alert(
+      "حذف تقرير المبيعات",
+      "هل أنت متأكد من حذف تقرير المبيعات؟ \nسيتم حذف جميع الطلبات وإعادة تعيين التقارير من الصفر.\nلا يمكن التراجع عن هذا الإجراء.",
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "حذف",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await resetMutation.mutateAsync();
+              reportsQuery.refetch();
+              Alert.alert("تم", "تم حذف تقرير المبيعات بنجاح");
+            } catch (e) {
+              Alert.alert("خطأ", "فشل حذف التقرير");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   if (reportsQuery.isLoading) return <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />;
 
@@ -644,6 +702,17 @@ function ReportsView() {
           </View>
         );
       })}
+      <Pressable
+        onPress={handleResetReport}
+        style={({ pressed }) => [
+          styles.resetReportBtn,
+          pressed && { opacity: 0.8 },
+        ]}
+      >
+        <MaterialIcons name="delete-sweep" size={22} color="#fff" />
+        <Text style={styles.resetReportBtnText}>حذف تقرير المبيعات</Text>
+      </Pressable>
+
       <View style={{ height: 100 }} />
     </ScrollView>
   );
@@ -763,4 +832,16 @@ const styles = StyleSheet.create({
   reportRowValues: { alignItems: "flex-end" },
   reportRowCount: { fontSize: 13, fontWeight: "bold", color: "#2563EB" },
   reportRowRevenue: { fontSize: 11, color: "#6B7280" },
+  deleteOrderBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    backgroundColor: "#EF4444", borderRadius: 8, paddingVertical: 10,
+    marginTop: 10, gap: 6,
+  },
+  deleteOrderBtnText: { color: "#fff", fontSize: 14, fontWeight: "bold" },
+  resetReportBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    backgroundColor: "#EF4444", borderRadius: 10, paddingVertical: 14,
+    marginTop: 24, gap: 8,
+  },
+  resetReportBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });

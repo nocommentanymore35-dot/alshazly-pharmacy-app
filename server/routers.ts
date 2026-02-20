@@ -136,6 +136,9 @@ export const appRouter = router({
     updateStatus: publicProcedure
       .input(z.object({ id: z.number(), status: z.enum(["received", "preparing", "shipped", "delivered"]) }))
       .mutation(({ input }) => db.updateOrderStatus(input.id, input.status)),
+    delete: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.deleteOrder(input.id)),
   }),
 
   // Admin Auth
@@ -151,6 +154,7 @@ export const appRouter = router({
   // Reports
   reports: router({
     sales: publicProcedure.query(() => db.getSalesReport()),
+    reset: publicProcedure.mutation(() => db.resetSalesReport()),
   }),
 
   // File Upload
