@@ -36,7 +36,6 @@ const MAPPING = {
   "eye.fill": "visibility",
   "eye.slash.fill": "visibility-off",
   "gift.fill": "card-giftcard",
-  "square.and.arrow.up": "share",
 } as IconMapping;
 
 export function IconSymbol({

@@ -30,7 +30,6 @@ export default function AdminScreen() {
   const loginMutation = trpc.admin.login.useMutation();
   const setupMutation = trpc.admin.setup.useMutation();
 
-  // Setup default admin on first load
   useEffect(() => {
     setupMutation.mutate({ username: "admin", password: "admin123" });
   }, []);
@@ -56,13 +55,13 @@ export default function AdminScreen() {
 
   if (!state.isAdminLoggedIn) {
     return (
-      <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
+      <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
         <View style={styles.container}>
           <View style={styles.header}>
             <Text style={styles.headerTitle}>لوحة الإدارة</Text>
           </View>
           <View style={styles.loginContainer}>
-            <MaterialIcons name="admin-panel-settings" size={64} color="#4169E1" />
+            <MaterialIcons name="admin-panel-settings" size={64} color="#2563EB" />
             <Text style={styles.loginTitle}>تسجيل دخول الإدارة</Text>
             <Text style={styles.loginHint}>هذا القسم خاص بإدارة الصيدلية فقط</Text>
 
@@ -115,20 +114,20 @@ export default function AdminScreen() {
   }
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>لوحة الإدارة</Text>
+        <View style={styles.headerCompact}>
+          <Text style={styles.headerTitleCompact}>لوحة الإدارة</Text>
           <Pressable
             onPress={() => { setAdminLoggedIn(false); setUsername(""); setPassword(""); }}
             style={({ pressed }) => [pressed && { opacity: 0.7 }]}
           >
-            <Text style={styles.logoutText}>تسجيل خروج</Text>
+            <Text style={styles.logoutText}>خروج</Text>
           </Pressable>
         </View>
 
-        {/* Admin Tabs */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsBar} contentContainerStyle={{ paddingHorizontal: 12, gap: 6 }}>
+        {/* Admin Tabs - Compact */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabsBarCompact} contentContainerStyle={{ paddingHorizontal: 8, gap: 4 }}>
           {[
             { key: "orders", label: "الطلبات", icon: "receipt-long" },
             { key: "medicines", label: "الأدوية", icon: "medication" },
@@ -140,13 +139,13 @@ export default function AdminScreen() {
               key={tab.key}
               onPress={() => setActiveTab(tab.key as AdminTab)}
               style={({ pressed }) => [
-                styles.tabItem,
+                styles.tabItemCompact,
                 activeTab === tab.key && styles.tabItemActive,
                 pressed && { opacity: 0.8 },
               ]}
             >
-              <MaterialIcons name={tab.icon as any} size={18} color={activeTab === tab.key ? "#4169E1" : "#6B7280"} />
-              <Text style={[styles.tabLabel, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
+              <MaterialIcons name={tab.icon as any} size={16} color={activeTab === tab.key ? "#2563EB" : "#6B7280"} />
+              <Text style={[styles.tabLabelCompact, activeTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
             </Pressable>
           ))}
         </ScrollView>
@@ -179,7 +178,7 @@ function OrdersManagement() {
     }
   };
 
-  if (ordersQuery.isLoading) return <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 40 }} />;
+  if (ordersQuery.isLoading) return <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />;
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -236,11 +235,12 @@ function MedicinesManagement() {
   const [editId, setEditId] = useState<number | null>(null);
   const [nameAr, setNameAr] = useState("");
   const [nameEn, setNameEn] = useState("");
+  const [strips, setStrips] = useState("1");
   const [price, setPrice] = useState("");
-  const [descAr, setDescAr] = useState("");
-  const [descEn, setDescEn] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [stock, setStock] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [descAr, setDescAr] = useState("");
 
   const medsQuery = trpc.medicines.listAll.useQuery();
   const catsQuery = trpc.categories.listAll.useQuery();
@@ -252,27 +252,31 @@ function MedicinesManagement() {
   const cats = catsQuery.data ?? [];
 
   const resetForm = () => {
-    setNameAr(""); setNameEn(""); setPrice(""); setDescAr(""); setDescEn("");
-    setCategoryId(""); setStock(""); setEditId(null); setShowForm(false);
+    setNameAr(""); setNameEn(""); setStrips("1"); setPrice(""); setDescAr("");
+    setCategoryId(""); setStock(""); setImageUrl(""); setEditId(null); setShowForm(false);
   };
 
   const handleSave = async () => {
     if (!nameAr.trim() || !nameEn.trim() || !price.trim() || !categoryId) {
-      Alert.alert("خطأ", "يرجى ملء جميع الحقول المطلوبة");
+      Alert.alert("خطأ", "يرجى ملء جميع الحقول المطلوبة (الاسم عربي، الاسم إنجليزي، السعر، الفئة)");
       return;
     }
     try {
       if (editId) {
         await updateMutation.mutateAsync({
           id: editId, nameAr: nameAr.trim(), nameEn: nameEn.trim(),
-          price: price.trim(), descriptionAr: descAr.trim(), descriptionEn: descEn.trim(),
+          price: price.trim(), descriptionAr: descAr.trim(),
           categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
+          strips: parseInt(strips) || 1,
+          imageUrl: imageUrl.trim() || undefined,
         });
       } else {
         await createMutation.mutateAsync({
           nameAr: nameAr.trim(), nameEn: nameEn.trim(),
-          price: price.trim(), descriptionAr: descAr.trim(), descriptionEn: descEn.trim(),
+          price: price.trim(), descriptionAr: descAr.trim(),
           categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
+          strips: parseInt(strips) || 1,
+          imageUrl: imageUrl.trim() || undefined,
         });
       }
       medsQuery.refetch();
@@ -288,15 +292,16 @@ function MedicinesManagement() {
     setNameAr(med.nameAr);
     setNameEn(med.nameEn);
     setPrice(med.price);
+    setStrips(med.strips?.toString() ?? "1");
     setDescAr(med.descriptionAr ?? "");
-    setDescEn(med.descriptionEn ?? "");
     setCategoryId(med.categoryId.toString());
     setStock(med.stock?.toString() ?? "0");
+    setImageUrl(med.imageUrl ?? "");
     setShowForm(true);
   };
 
   const handleDelete = (id: number, name: string) => {
-    Alert.alert("حذف", `هل تريد حذف "${name}"؟`, [
+    Alert.alert("حذف", `هل تريد حذف "${name}"؟ سيتم حذفه نهائياً.`, [
       { text: "إلغاء", style: "cancel" },
       { text: "حذف", style: "destructive", onPress: async () => {
         await deleteMutation.mutateAsync({ id });
@@ -321,16 +326,14 @@ function MedicinesManagement() {
       {showForm && (
         <View style={styles.formCard}>
           <Text style={styles.formCardTitle}>{editId ? "تعديل دواء" : "إضافة دواء جديد"}</Text>
-          <TextInput style={styles.formInput} placeholder="اسم الدواء (عربي) *" value={nameAr} onChangeText={setNameAr} placeholderTextColor="#9CA3AF" />
-          <TextInput style={styles.formInput} placeholder="اسم الدواء (إنجليزي) *" value={nameEn} onChangeText={setNameEn} placeholderTextColor="#9CA3AF" />
+          <TextInput style={styles.formInput} placeholder="اسم الصنف (إنجليزي) *" value={nameEn} onChangeText={setNameEn} placeholderTextColor="#9CA3AF" />
+          <TextInput style={styles.formInput} placeholder="اسم الصنف (عربي) *" value={nameAr} onChangeText={setNameAr} placeholderTextColor="#9CA3AF" />
+          <TextInput style={styles.formInput} placeholder="عدد الشرائط" value={strips} onChangeText={setStrips} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
           <TextInput style={styles.formInput} placeholder="السعر (ج.م) *" value={price} onChangeText={setPrice} keyboardType="decimal-pad" placeholderTextColor="#9CA3AF" />
-          <TextInput style={styles.formInput} placeholder="الوصف (عربي)" value={descAr} onChangeText={setDescAr} multiline placeholderTextColor="#9CA3AF" />
-          <TextInput style={styles.formInput} placeholder="الوصف (إنجليزي)" value={descEn} onChangeText={setDescEn} multiline placeholderTextColor="#9CA3AF" />
-          <TextInput style={styles.formInput} placeholder="المخزون" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
 
           {/* Category Selector */}
           <Text style={styles.formLabel}>الفئة *</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
             {cats.map((cat: any) => (
               <Pressable
                 key={cat.id}
@@ -344,6 +347,16 @@ function MedicinesManagement() {
             ))}
           </ScrollView>
 
+          <TextInput style={styles.formInput} placeholder="المخزون *" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
+          <TextInput style={styles.formInput} placeholder="رابط صورة الصنف (URL)" value={imageUrl} onChangeText={setImageUrl} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
+          {imageUrl.trim() ? (
+            <View style={{ alignItems: "center", marginBottom: 10 }}>
+              <Image source={{ uri: imageUrl.trim() }} style={{ width: 100, height: 100, borderRadius: 8 }} contentFit="cover" />
+              <Text style={{ fontSize: 11, color: "#22C55E", marginTop: 4 }}>معاينة الصورة</Text>
+            </View>
+          ) : null}
+          <TextInput style={[styles.formInput, { height: 60 }]} placeholder="الوصف (اختياري)" value={descAr} onChangeText={setDescAr} multiline placeholderTextColor="#9CA3AF" />
+
           <Pressable onPress={handleSave} style={({ pressed }) => [styles.saveFormBtn, pressed && { opacity: 0.9 }]}>
             <Text style={styles.saveFormBtnText}>{editId ? "تحديث" : "إضافة"}</Text>
           </Pressable>
@@ -352,10 +365,18 @@ function MedicinesManagement() {
 
       {meds.map((med: any) => (
         <View key={med.id} style={styles.adminCard}>
-          <View style={styles.adminCardHeader}>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            {med.imageUrl ? (
+              <Image source={{ uri: med.imageUrl }} style={{ width: 50, height: 50, borderRadius: 8 }} contentFit="cover" />
+            ) : (
+              <View style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name="medication" size={24} color="#D1D5DB" />
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.adminCardTitle}>{med.nameAr}</Text>
               <Text style={styles.adminCardSubtitle}>{med.nameEn}</Text>
+              <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط: {med.strips ?? 1} | مخزون: {med.stock}</Text>
             </View>
             <Text style={styles.medPrice}>{parseFloat(med.price).toFixed(2)} ج.م</Text>
           </View>
@@ -477,6 +498,7 @@ function BannersManagement() {
   const [editId, setEditId] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
   const [sortOrder, setSortOrder] = useState("0");
 
   const bannersQuery = trpc.banners.listAll.useQuery();
@@ -487,19 +509,27 @@ function BannersManagement() {
   const bannersList = bannersQuery.data ?? [];
 
   const resetForm = () => {
-    setTitle(""); setDescription(""); setSortOrder("0"); setEditId(null); setShowForm(false);
+    setTitle(""); setDescription(""); setImageUrl(""); setSortOrder("0"); setEditId(null); setShowForm(false);
   };
 
   const handleSave = async () => {
-    if (!title.trim()) {
-      Alert.alert("خطأ", "يرجى إدخال عنوان الإعلان");
+    if (!imageUrl.trim()) {
+      Alert.alert("خطأ", "يرجى إدخال رابط صورة الإعلان");
       return;
     }
     try {
       if (editId) {
-        await updateMutation.mutateAsync({ id: editId, title: title.trim(), description: description.trim(), sortOrder: parseInt(sortOrder) || 0 });
+        await updateMutation.mutateAsync({
+          id: editId, title: title.trim(), description: description.trim(),
+          imageUrl: imageUrl.trim() || undefined,
+          sortOrder: parseInt(sortOrder) || 0,
+        });
       } else {
-        await createMutation.mutateAsync({ title: title.trim(), description: description.trim(), sortOrder: parseInt(sortOrder) || 0 });
+        await createMutation.mutateAsync({
+          title: title.trim() || undefined, description: description.trim() || undefined,
+          imageUrl: imageUrl.trim(),
+          sortOrder: parseInt(sortOrder) || 0,
+        });
       }
       bannersQuery.refetch();
       resetForm();
@@ -531,8 +561,16 @@ function BannersManagement() {
 
       {showForm && (
         <View style={styles.formCard}>
-          <TextInput style={styles.formInput} placeholder="عنوان الإعلان *" value={title} onChangeText={setTitle} placeholderTextColor="#9CA3AF" />
-          <TextInput style={[styles.formInput, { height: 80 }]} placeholder="وصف الإعلان" value={description} onChangeText={setDescription} multiline placeholderTextColor="#9CA3AF" />
+          <Text style={styles.formCardTitle}>{editId ? "تعديل إعلان" : "إضافة إعلان جديد"}</Text>
+          <TextInput style={styles.formInput} placeholder="عنوان الإعلان (اختياري)" value={title} onChangeText={setTitle} placeholderTextColor="#9CA3AF" />
+          <TextInput style={[styles.formInput, { height: 70 }]} placeholder="وصف الإعلان (اختياري)" value={description} onChangeText={setDescription} multiline placeholderTextColor="#9CA3AF" />
+          <TextInput style={styles.formInput} placeholder="رابط صورة الإعلان (URL) *" value={imageUrl} onChangeText={setImageUrl} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
+          {imageUrl.trim() ? (
+            <View style={{ alignItems: "center", marginBottom: 10 }}>
+              <Image source={{ uri: imageUrl.trim() }} style={{ width: "100%", height: 120, borderRadius: 8 }} contentFit="cover" />
+              <Text style={{ fontSize: 11, color: "#22C55E", marginTop: 4 }}>معاينة صورة الإعلان</Text>
+            </View>
+          ) : null}
           <TextInput style={styles.formInput} placeholder="الترتيب (1, 2, 3...)" value={sortOrder} onChangeText={setSortOrder} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
           <Pressable onPress={handleSave} style={({ pressed }) => [styles.saveFormBtn, pressed && { opacity: 0.9 }]}>
             <Text style={styles.saveFormBtnText}>{editId ? "تحديث" : "إضافة"}</Text>
@@ -542,6 +580,9 @@ function BannersManagement() {
 
       {bannersList.map((banner: any) => (
         <View key={banner.id} style={styles.adminCard}>
+          {banner.imageUrl ? (
+            <Image source={{ uri: banner.imageUrl }} style={{ width: "100%", height: 100, borderRadius: 8, marginBottom: 8 }} contentFit="cover" />
+          ) : null}
           <View style={styles.adminCardHeader}>
             <View style={{ flex: 1 }}>
               <Text style={styles.adminCardTitle}>{banner.title}</Text>
@@ -550,7 +591,7 @@ function BannersManagement() {
             <Text style={styles.adminCardDate}>ترتيب: {banner.sortOrder}</Text>
           </View>
           <View style={styles.adminCardActions}>
-            <Pressable onPress={() => { setEditId(banner.id); setTitle(banner.title); setDescription(banner.description ?? ""); setSortOrder(banner.sortOrder?.toString() ?? "0"); setShowForm(true); }} style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.7 }]}>
+            <Pressable onPress={() => { setEditId(banner.id); setTitle(banner.title); setDescription(banner.description ?? ""); setImageUrl(banner.imageUrl ?? ""); setSortOrder(banner.sortOrder?.toString() ?? "0"); setShowForm(true); }} style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.7 }]}>
               <MaterialIcons name="edit" size={18} color="#2563EB" />
               <Text style={styles.editBtnText}>تعديل</Text>
             </Pressable>
@@ -571,7 +612,7 @@ function ReportsView() {
   const reportsQuery = trpc.reports.sales.useQuery();
   const report = reportsQuery.data;
 
-  if (reportsQuery.isLoading) return <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 40 }} />;
+  if (reportsQuery.isLoading) return <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />;
 
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
@@ -611,11 +652,16 @@ function ReportsView() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9FAFB" },
   header: {
-    backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
+    backgroundColor: "#2563EB", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
+    flexDirection: "row", justifyContent: "space-between", alignItems: "center",
+  },
+  headerCompact: {
+    backgroundColor: "#2563EB", paddingHorizontal: 16, paddingTop: 44, paddingBottom: 10,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
-  logoutText: { fontSize: 14, color: "rgba(255,255,255,0.8)" },
+  headerTitleCompact: { fontSize: 18, fontWeight: "bold", color: "#fff" },
+  logoutText: { fontSize: 13, color: "rgba(255,255,255,0.8)" },
   // Login
   loginContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 32, backgroundColor: "#fff" },
   loginTitle: { fontSize: 22, fontWeight: "bold", color: "#1F2937", marginTop: 16 },
@@ -627,94 +673,94 @@ const styles = StyleSheet.create({
   },
   loginField: { flex: 1, fontSize: 15, color: "#1F2937", textAlign: "right", marginHorizontal: 8 },
   loginBtn: {
-    backgroundColor: "#4169E1", borderRadius: 12, paddingVertical: 14,
+    backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 14,
     width: "100%", alignItems: "center", marginTop: 8,
   },
   loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   contactText: { fontSize: 15, color: "#6B7280", marginTop: 20, textAlign: "center" },
-  // Tabs
-  tabsBar: { backgroundColor: "#fff", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
-  tabItem: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
+  // Tabs - Compact
+  tabsBarCompact: { backgroundColor: "#fff", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
+  tabItemCompact: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16,
     backgroundColor: "#F3F4F6",
   },
   tabItemActive: { backgroundColor: "#EFF6FF" },
-  tabLabel: { fontSize: 13, color: "#6B7280", fontWeight: "600" },
-  tabLabelActive: { color: "#4169E1" },
-  adminBody: { flex: 1, padding: 16 },
-  adminSectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 12, textAlign: "right" },
-  adminHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  tabLabelCompact: { fontSize: 11, color: "#6B7280", fontWeight: "600" },
+  tabLabelActive: { color: "#2563EB" },
+  adminBody: { flex: 1, padding: 12 },
+  adminSectionTitle: { fontSize: 16, fontWeight: "bold", color: "#1F2937", marginBottom: 10, textAlign: "right" },
+  adminHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
   addBtn: {
     flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#4169E1", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8,
+    backgroundColor: "#2563EB", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8,
   },
-  addBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  addBtnText: { color: "#fff", fontSize: 12, fontWeight: "600" },
   adminEmpty: { alignItems: "center", paddingVertical: 40 },
   adminEmptyText: { fontSize: 15, color: "#6B7280", marginTop: 12 },
   adminCard: {
-    backgroundColor: "#fff", borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 12,
+    backgroundColor: "#fff", borderRadius: 10, padding: 12,
+    borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 10,
   },
-  adminCardHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
-  adminCardTitle: { fontSize: 15, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
-  adminCardSubtitle: { fontSize: 12, color: "#6B7280", textAlign: "right", marginTop: 2 },
-  adminCardDate: { fontSize: 12, color: "#9CA3AF" },
-  adminCardBody: { gap: 4, marginBottom: 8 },
-  adminCardInfo: { fontSize: 13, color: "#4B5563", textAlign: "right" },
-  adminCardActions: { flexDirection: "row", gap: 12, borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingTop: 8 },
-  editBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 6 },
-  editBtnText: { fontSize: 13, color: "#2563EB", fontWeight: "600" },
-  delBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 6 },
-  delBtnText: { fontSize: 13, color: "#DC2626", fontWeight: "600" },
-  medPrice: { fontSize: 15, fontWeight: "bold", color: "#4169E1" },
-  statusButtons: { flexDirection: "row", flexWrap: "wrap", gap: 6, borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingTop: 8 },
+  adminCardHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
+  adminCardTitle: { fontSize: 14, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
+  adminCardSubtitle: { fontSize: 11, color: "#6B7280", textAlign: "right", marginTop: 2 },
+  adminCardDate: { fontSize: 11, color: "#9CA3AF" },
+  adminCardBody: { gap: 3, marginBottom: 6 },
+  adminCardInfo: { fontSize: 12, color: "#4B5563", textAlign: "right" },
+  adminCardActions: { flexDirection: "row", gap: 12, borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingTop: 6 },
+  editBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 4 },
+  editBtnText: { fontSize: 12, color: "#2563EB", fontWeight: "600" },
+  delBtn: { flexDirection: "row", alignItems: "center", gap: 4, padding: 4 },
+  delBtnText: { fontSize: 12, color: "#DC2626", fontWeight: "600" },
+  medPrice: { fontSize: 14, fontWeight: "bold", color: "#2563EB" },
+  statusButtons: { flexDirection: "row", flexWrap: "wrap", gap: 5, borderTopWidth: 1, borderTopColor: "#F3F4F6", paddingTop: 6 },
   statusBtn: {
-    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6,
+    paddingHorizontal: 8, paddingVertical: 5, borderRadius: 6,
     borderWidth: 1, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB",
   },
-  statusBtnActive: { backgroundColor: "#4169E1", borderColor: "#4169E1" },
-  statusBtnText: { fontSize: 11, color: "#6B7280", fontWeight: "600" },
+  statusBtnActive: { backgroundColor: "#2563EB", borderColor: "#2563EB" },
+  statusBtnText: { fontSize: 10, color: "#6B7280", fontWeight: "600" },
   statusBtnTextActive: { color: "#fff" },
   // Form
   formCard: {
-    backgroundColor: "#fff", borderRadius: 12, padding: 16,
-    borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 16,
+    backgroundColor: "#fff", borderRadius: 10, padding: 14,
+    borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 14,
   },
-  formCardTitle: { fontSize: 16, fontWeight: "bold", color: "#1F2937", marginBottom: 12, textAlign: "right" },
+  formCardTitle: { fontSize: 15, fontWeight: "bold", color: "#1F2937", marginBottom: 10, textAlign: "right" },
   formInput: {
     backgroundColor: "#F9FAFB", borderRadius: 8, borderWidth: 1, borderColor: "#E5E7EB",
-    paddingHorizontal: 12, height: 44, fontSize: 14, color: "#1F2937",
-    textAlign: "right", marginBottom: 10,
+    paddingHorizontal: 12, height: 42, fontSize: 13, color: "#1F2937",
+    textAlign: "right", marginBottom: 8,
   },
-  formLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 6, textAlign: "right" },
+  formLabel: { fontSize: 12, fontWeight: "600", color: "#374151", marginBottom: 4, textAlign: "right" },
   catChip: {
-    paddingHorizontal: 14, paddingVertical: 6, borderRadius: 16,
+    paddingHorizontal: 12, paddingVertical: 5, borderRadius: 14,
     borderWidth: 1, borderColor: "#E5E7EB", marginRight: 6,
   },
-  catChipActive: { backgroundColor: "#4169E1", borderColor: "#4169E1" },
-  catChipText: { fontSize: 13, color: "#6B7280" },
+  catChipActive: { backgroundColor: "#2563EB", borderColor: "#2563EB" },
+  catChipText: { fontSize: 12, color: "#6B7280" },
   catChipTextActive: { color: "#fff" },
   saveFormBtn: {
-    backgroundColor: "#4169E1", borderRadius: 10, paddingVertical: 12,
+    backgroundColor: "#2563EB", borderRadius: 8, paddingVertical: 10,
     alignItems: "center", marginTop: 4,
   },
-  saveFormBtnText: { color: "#fff", fontSize: 15, fontWeight: "bold" },
+  saveFormBtnText: { color: "#fff", fontSize: 14, fontWeight: "bold" },
   // Reports
-  reportGrid: { flexDirection: "row", gap: 12 },
+  reportGrid: { flexDirection: "row", gap: 10 },
   reportCard: {
-    flex: 1, borderRadius: 12, padding: 16, alignItems: "center",
+    flex: 1, borderRadius: 10, padding: 14, alignItems: "center",
     borderWidth: 1, borderColor: "#E5E7EB",
   },
-  reportValue: { fontSize: 24, fontWeight: "bold", color: "#1F2937", marginTop: 8 },
-  reportLabel: { fontSize: 13, color: "#6B7280", marginTop: 4 },
+  reportValue: { fontSize: 22, fontWeight: "bold", color: "#1F2937", marginTop: 6 },
+  reportLabel: { fontSize: 12, color: "#6B7280", marginTop: 4 },
   reportRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    backgroundColor: "#fff", borderRadius: 10, padding: 14,
-    borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 8,
+    backgroundColor: "#fff", borderRadius: 8, padding: 12,
+    borderWidth: 1, borderColor: "#E5E7EB", marginBottom: 6,
   },
-  reportRowLabel: { fontSize: 14, fontWeight: "600", color: "#1F2937" },
+  reportRowLabel: { fontSize: 13, fontWeight: "600", color: "#1F2937" },
   reportRowValues: { alignItems: "flex-end" },
-  reportRowCount: { fontSize: 14, fontWeight: "bold", color: "#4169E1" },
-  reportRowRevenue: { fontSize: 12, color: "#6B7280" },
+  reportRowCount: { fontSize: 13, fontWeight: "bold", color: "#2563EB" },
+  reportRowRevenue: { fontSize: 11, color: "#6B7280" },
 });

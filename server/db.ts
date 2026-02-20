@@ -104,6 +104,12 @@ export async function getAllMedicines() {
   return db.select().from(medicines).orderBy(desc(medicines.createdAt));
 }
 
+export async function getAllMedicinesAdmin() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(medicines).orderBy(desc(medicines.createdAt));
+}
+
 export async function getMedicinesByCategory(categoryId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -145,7 +151,7 @@ export async function updateMedicine(id: number, data: Partial<InsertMedicine>) 
 export async function deleteMedicine(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(medicines).set({ isActive: false }).where(eq(medicines.id, id));
+  await db.delete(medicines).where(eq(medicines.id, id));
 }
 
 // ===== BANNER FUNCTIONS =====

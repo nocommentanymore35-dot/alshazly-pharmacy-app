@@ -1,0 +1,1 @@
+ALTER TABLE `banners` MODIFY COLUMN `title` varchar(255);

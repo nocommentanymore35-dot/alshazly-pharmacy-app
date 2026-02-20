@@ -20,8 +20,8 @@ export default function TabLayout() {
           paddingTop: 8,
           paddingBottom: bottomPadding,
           height: tabBarHeight,
-          backgroundColor: "#4169E1",
-          borderTopColor: "#4169E1",
+          backgroundColor: "#2563EB",
+          borderTopColor: "#2563EB",
           borderTopWidth: 0,
         },
         tabBarLabelStyle: {
@@ -42,14 +42,21 @@ export default function TabLayout() {
         name="cart"
         options={{
           title: "السلة",
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="paperplane.fill" color={color} />,
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="cart.fill" color={color} />,
         }}
       />
       <Tabs.Screen
         name="favorites"
         options={{
           title: "المفضلة",
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="heart.fill" color={color} />,
+          tabBarIcon: ({ focused }) => <IconSymbol size={26} name="heart.fill" color={focused ? "#FF0000" : "rgba(255,100,100,0.6)"} />,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: "الملف الشخصي",
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="person.fill" color={color} />,
         }}
       />
       <Tabs.Screen
@@ -57,13 +64,6 @@ export default function TabLayout() {
         options={{
           title: "الولاء",
           tabBarIcon: ({ color }) => <IconSymbol size={26} name="gift.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: "الملف الشخصي",
-          tabBarIcon: ({ color }) => <IconSymbol size={26} name="chevron.left.forwardslash.chevron.right" color={color} />,
         }}
       />
       <Tabs.Screen
