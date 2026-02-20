@@ -19,15 +19,8 @@
     {
       "idx": 2,
       "version": "5",
-      "when": 1771528757668,
-      "tag": "0002_magenta_the_stranger",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "5",
-      "when": 1771532386828,
-      "tag": "0003_fuzzy_scarlet_witch",
+      "when": 1771547614361,
+      "tag": "0002_daffy_the_call",
       "breakpoints": true
     }
   ]

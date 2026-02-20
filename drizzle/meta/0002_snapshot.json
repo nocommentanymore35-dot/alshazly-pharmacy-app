@@ -1,7 +1,7 @@
 {
   "version": "5",
   "dialect": "mysql",
-  "id": "27d57dd1-5dbc-4086-81aa-b46b4b0966ca",
+  "id": "702b17be-0f9a-443a-9878-a918b6e76a76",
   "prevId": "e57d4f10-2d1f-4a29-950a-77d63cc426ea",
   "tables": {
     "admin_credentials": {
@@ -71,7 +71,7 @@
           "name": "title",
           "type": "varchar(255)",
           "primaryKey": false,
-          "notNull": true,
+          "notNull": false,
           "autoincrement": false
         },
         "description": {
