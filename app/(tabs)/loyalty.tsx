@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Text, View, FlatList, StyleSheet, Platform, Share, TouchableOpacity, Alert } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAppStore, LoyaltyTransaction } from "@/lib/store";
@@ -18,6 +18,29 @@ export default function LoyaltyScreen() {
     return txYear === currentYear;
   });
   const yearOrderCount = yearTransactions.length;
+
+  // Countdown to end of year (Dec 31 23:59:59)
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+
+  useEffect(() => {
+    const calcCountdown = () => {
+      const now = new Date();
+      const endOfYear = new Date(now.getFullYear(), 11, 31, 23, 59, 59);
+      const diff = endOfYear.getTime() - now.getTime();
+      if (diff <= 0) {
+        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setCountdown({ days, hours, minutes, seconds });
+    };
+    calcCountdown();
+    const interval = setInterval(calcCountdown, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
@@ -117,6 +140,33 @@ export default function LoyaltyScreen() {
           <Text style={styles.drawDesc}>
             في نهاية كل عام، يتم إجراء سحب عشوائي بين جميع العملاء الذين قاموا بعمليات شراء خلال العام. كلما زادت نقاطك، زادت فرصتك في الفوز!
           </Text>
+
+          {/* Countdown Timer */}
+          <View style={styles.countdownContainer}>
+            <Text style={styles.countdownLabel}>الوقت المتبقي للسحب</Text>
+            <View style={styles.countdownRow}>
+              <View style={styles.countdownItem}>
+                <Text style={styles.countdownNumber}>{countdown.seconds.toString().padStart(2, '0')}</Text>
+                <Text style={styles.countdownUnit}>ثانية</Text>
+              </View>
+              <Text style={styles.countdownSeparator}>:</Text>
+              <View style={styles.countdownItem}>
+                <Text style={styles.countdownNumber}>{countdown.minutes.toString().padStart(2, '0')}</Text>
+                <Text style={styles.countdownUnit}>دقيقة</Text>
+              </View>
+              <Text style={styles.countdownSeparator}>:</Text>
+              <View style={styles.countdownItem}>
+                <Text style={styles.countdownNumber}>{countdown.hours.toString().padStart(2, '0')}</Text>
+                <Text style={styles.countdownUnit}>ساعة</Text>
+              </View>
+              <Text style={styles.countdownSeparator}>:</Text>
+              <View style={styles.countdownItem}>
+                <Text style={styles.countdownNumber}>{countdown.days.toString()}</Text>
+                <Text style={styles.countdownUnit}>يوم</Text>
+              </View>
+            </View>
+          </View>
+
           <View style={styles.drawHighlight}>
             <MaterialIcons name="info-outline" size={18} color="#2563EB" />
             <Text style={styles.drawHighlightText}>
@@ -244,6 +294,28 @@ const styles = StyleSheet.create({
   drawHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
   drawTitle: { fontSize: 17, fontWeight: "bold", color: "#92400E" },
   drawDesc: { fontSize: 14, color: "#78350F", lineHeight: 22, textAlign: "right", marginBottom: 14 },
+  // Countdown
+  countdownContainer: {
+    backgroundColor: "#1E3A5F", borderRadius: 14, padding: 18,
+    marginBottom: 14, alignItems: "center",
+  },
+  countdownLabel: {
+    fontSize: 14, fontWeight: "bold", color: "#FFD700",
+    marginBottom: 12, textAlign: "center",
+  },
+  countdownRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6,
+  },
+  countdownItem: { alignItems: "center", minWidth: 52 },
+  countdownNumber: {
+    fontSize: 28, fontWeight: "bold", color: "#fff",
+    backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 10,
+    paddingHorizontal: 10, paddingVertical: 6,
+    overflow: "hidden", textAlign: "center", minWidth: 52,
+  },
+  countdownUnit: { fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 4 },
+  countdownSeparator: { fontSize: 24, fontWeight: "bold", color: "#FFD700", marginBottom: 16 },
+
   drawHighlight: {
     flexDirection: "row", alignItems: "center", gap: 8,
     backgroundColor: "#EFF6FF", paddingHorizontal: 14, paddingVertical: 10,
