@@ -60,11 +60,8 @@ export default function HomeScreen() {
       ? categoryMedicines
       : allMedicines;
 
-  const uploadAudioMutation = trpc.upload.audio.useMutation();
   const transcribeMutation = trpc.voice.transcribe.useMutation({
     onSuccess: (data) => {
-      setIsRecording(false);
-      micPulse.value = 1;
       if (data.text && data.text.trim().length > 0) {
         setSearchQuery(data.text.trim());
         setSelectedCategory(null);
@@ -73,35 +70,9 @@ export default function HomeScreen() {
       }
     },
     onError: () => {
-      setIsRecording(false);
-      micPulse.value = 1;
       Alert.alert("البحث الصوتي", "حدث خطأ أثناء تحويل الصوت. حاول مرة أخرى.");
     },
   });
-
-  const finishNativeRecording = async (recorder: any) => {
-    try {
-      await recorder.stop();
-      const uri = recorder.uri;
-      recorderRef.current = null;
-      if (!uri) {
-        setIsRecording(false);
-        micPulse.value = 1;
-        Alert.alert("البحث الصوتي", "لم يتم تسجيل صوت. حاول مرة أخرى.");
-        return;
-      }
-      // Read audio file as base64 and upload
-      const FileSystem = await import("expo-file-system/legacy");
-      const base64 = await FileSystem.readAsStringAsync(uri, { encoding: FileSystem.EncodingType.Base64 });
-      const uploadResult = await uploadAudioMutation.mutateAsync({ base64 });
-      // Transcribe the uploaded audio
-      transcribeMutation.mutate({ audioUrl: uploadResult.url });
-    } catch (e) {
-      setIsRecording(false);
-      micPulse.value = 1;
-      Alert.alert("البحث الصوتي", "حدث خطأ أثناء معالجة الصوت. حاول مرة أخرى.");
-    }
-  };
 
   const startVoiceSearch = async () => {
     try {
@@ -139,29 +110,16 @@ export default function HomeScreen() {
         return;
       }
 
-      // Native: use expo-audio recording + upload to S3 + server transcription
-      const ExpoAudio = await import("expo-audio");
-      const permStatus = await ExpoAudio.requestRecordingPermissionsAsync();
+      // Native: use expo-audio recording + server transcription
+      const { requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, RecordingPresets } = await import("expo-audio");
+      const permStatus = await requestRecordingPermissionsAsync();
       if (!permStatus.granted) {
         Alert.alert("البحث الصوتي", "يجب السماح بالوصول إلى الميكروفون لاستخدام البحث الصوتي.");
         return;
       }
-      await ExpoAudio.setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-
-      // Create recorder using useAudioRecorder pattern
-      const recorder = new ExpoAudio.AudioRecorder(ExpoAudio.RecordingPresets.HIGH_QUALITY);
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      recorderRef.current = recorder;
-      setIsRecording(true);
-      micPulse.value = withRepeat(withTiming(1.15, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
-
-      // Auto-stop after 5 seconds
-      setTimeout(async () => {
-        if (recorderRef.current === recorder) {
-          await finishNativeRecording(recorder);
-        }
-      }, 5000);
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      // For native, we'll use a simpler approach with Alert prompt
+      Alert.alert("البحث الصوتي", "البحث الصوتي متاح عبر المتصفح. استخدم لوحة المفاتيح للبحث.");
     } catch (e) {
       setIsRecording(false);
       micPulse.value = 1;
@@ -169,13 +127,8 @@ export default function HomeScreen() {
     }
   };
 
-  const stopVoiceSearch = async () => {
+  const stopVoiceSearch = () => {
     if (recorderRef.current) {
-      if (Platform.OS !== "web") {
-        // Native: finish recording and transcribe
-        await finishNativeRecording(recorderRef.current);
-        return;
-      }
       try { recorderRef.current.stop(); } catch (e) {}
       recorderRef.current = null;
     }

@@ -186,15 +186,6 @@ export const appRouter = router({
         const result = await storagePut(key, buffer, input.contentType);
         return result;
       }),
-    audio: publicProcedure
-      .input(z.object({ base64: z.string() }))
-      .mutation(async ({ input }) => {
-        const buffer = Buffer.from(input.base64, "base64");
-        const randomSuffix = Math.random().toString(36).substring(2, 10);
-        const key = `pharmacy/voice-${randomSuffix}.m4a`;
-        const result = await storagePut(key, buffer, "audio/m4a");
-        return result;
-      }),
   }),
 });
 
