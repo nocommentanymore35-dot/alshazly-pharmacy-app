@@ -32,7 +32,7 @@ const env = {
   appSlug: "alshazly-pharmacy-app",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "https://private-us-east-1.manuscdn.com/user_upload_by_module/session_file/310519663305726337/BXjfkivCPvWYPfZb.png?Expires=1803090360&Signature=UH~NN~CWTWsDDcK5e68qSyH7kjZhxejbiKWshCWgIOYib~r6AFdz8QTRDZ11ajHZrmQZwF77Moi0eLp6u6HtuZtq0JQqT6DXTBS5-4kA8yBv7Y4JIZ0NF6vwDMZCbXSxE4rjWrUNxL2rb88INXgFuA4wAYiWhrdjIH1tuWSR-64IcGkh9q9xxhbZW2M92hWMg4fgiOMPundYn3m9pR~OeQdgz~U9nelKBPEkHO-OmySCOzv6rOm~q4DXx-XPJ9nE7wQMb0OHxlhhonRYl-U51ScNf2QwFareq8sxQO2zBAJFbE2IKBvitdh-mu2F0EBNdtVGHyLdmEzgk4vYfWPIQA__&Key-Pair-Id=K2HSFNDJXOU9YS",
+  logoUrl: "https://private-us-east-1.manuscdn.com/user_upload_by_module/session_file/310519663305726337/ocdcPxXwlmEuPuEc.png?Expires=1803091069&Signature=tZ6DQ15zh0AHMKXHZKj85nODOZ3OgERF8SW--50kf5~94X8m1ycs4pCyvN7gF4YasdPmif7MHPUHP7gTarl1vO4HzUUo~AFAl9XF5j8HwlpKW-i9fVGChcTMbFgXre5GAZHeZKuDNNMZoT1767Bcg4H8BfWed6vZKMqfcU2AcTb7jOlKvj~Mx06UyKUl8Yb74tcY78P1v5OSMqDRBHZoYPtVcoEk-bbBOpmnRGldM52jOCFMACDsFVagY58w00k6FaZM3ojcmd4ltq3mGVjhK6NRAZm~v9~6cziqSitBMEfG-vFWk9~KaYFIMY21Xt6aDr5H6grdq1w4AjOdNlf2~Q__&Key-Pair-Id=K2HSFNDJXOU9YS",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
