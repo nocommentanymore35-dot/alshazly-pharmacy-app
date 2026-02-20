@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Text, View, FlatList, StyleSheet, Platform, Share, TouchableOpacity, Alert } from "react-native";
+import { Text, View, FlatList, StyleSheet, Platform, Share, TouchableOpacity, Alert, Linking, Modal } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAppStore, LoyaltyTransaction } from "@/lib/store";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
@@ -13,6 +13,7 @@ export default function LoyaltyScreen() {
   const { totalPoints, transactions, archivedYears } = state.loyalty;
   const { showNewYearResetBanner, resetBannerPreviousPoints } = state;
   const [expandedArchiveYear, setExpandedArchiveYear] = useState<number | null>(null);
+  const [showDeveloperModal, setShowDeveloperModal] = useState(false);
 
   const currentYear = new Date().getFullYear();
   const yearTransactions = transactions.filter(t => {
@@ -279,6 +280,19 @@ export default function LoyaltyScreen() {
         </View>
       )}
 
+      {/* Developer Button */}
+      <View style={styles.developerSection}>
+        <TouchableOpacity
+          style={styles.developerButton}
+          activeOpacity={0.7}
+          onPress={() => setShowDeveloperModal(true)}
+        >
+          <MaterialIcons name="code" size={20} color="#6B7280" />
+          <Text style={styles.developerButtonText}>مطور التطبيق</Text>
+          <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
+        </TouchableOpacity>
+      </View>
+
       {/* Transactions Header */}
       <View style={styles.txHeader}>
         <Text style={styles.txHeaderTitle}>سجل النقاط - {currentYear}</Text>
@@ -315,6 +329,43 @@ export default function LoyaltyScreen() {
           contentContainerStyle={[styles.listContent, { paddingBottom: 100 }]}
           showsVerticalScrollIndicator={false}
         />
+
+        {/* Developer Modal */}
+        <Modal
+          visible={showDeveloperModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowDeveloperModal(false)}
+        >
+          <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <MaterialIcons name="developer-mode" size={32} color="#2563EB" />
+                <Text style={styles.modalTitle}>مطور التطبيق</Text>
+              </View>
+              <View style={styles.modalDivider} />
+              <TouchableOpacity
+                style={styles.modalPhoneRow}
+                activeOpacity={0.7}
+                onPress={() => {
+                  Linking.openURL("tel:01095071082");
+                }}
+              >
+                <Text style={styles.modalPhoneIcon}>📲</Text>
+                <Text style={styles.modalPhoneNumber}>01095071082</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalSubtext}>for more .. call me</Text>
+              <View style={styles.modalDivider} />
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                activeOpacity={0.8}
+                onPress={() => setShowDeveloperModal(false)}
+              >
+                <Text style={styles.modalCloseText}>إغلاق</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
       </View>
     </ScreenContainer>
   );
@@ -490,6 +541,43 @@ const styles = StyleSheet.create({
   archiveTxDate: { fontSize: 11, color: "#9CA3AF", textAlign: "right", marginTop: 2 },
   archiveTxPoints: { fontSize: 14, fontWeight: "bold", color: "#6B7280" },
   archiveMoreText: { fontSize: 12, color: "#9CA3AF", textAlign: "center", paddingVertical: 8 },
+
+  // Developer
+  developerSection: { paddingHorizontal: 16, paddingTop: 24 },
+  developerButton: {
+    flexDirection: "row", alignItems: "center", gap: 10,
+    backgroundColor: "#F3F4F6", borderRadius: 12, padding: 16,
+    borderWidth: 1, borderColor: "#E5E7EB",
+  },
+  developerButtonText: { flex: 1, fontSize: 15, fontWeight: "600", color: "#6B7280", textAlign: "right" },
+
+  // Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center", alignItems: "center", padding: 32,
+  },
+  modalContent: {
+    backgroundColor: "#fff", borderRadius: 20, padding: 28,
+    width: "100%", maxWidth: 340, alignItems: "center",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15, shadowRadius: 12, elevation: 8,
+  },
+  modalHeader: { alignItems: "center", gap: 10, marginBottom: 8 },
+  modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1F2937" },
+  modalDivider: { height: 1, backgroundColor: "#E5E7EB", width: "100%", marginVertical: 16 },
+  modalPhoneRow: {
+    flexDirection: "row", alignItems: "center", gap: 12,
+    backgroundColor: "#EFF6FF", borderRadius: 14, paddingHorizontal: 20, paddingVertical: 14,
+    width: "100%", justifyContent: "center",
+  },
+  modalPhoneIcon: { fontSize: 24 },
+  modalPhoneNumber: { fontSize: 22, fontWeight: "bold", color: "#2563EB", letterSpacing: 1 },
+  modalSubtext: { fontSize: 14, color: "#6B7280", marginTop: 10, fontStyle: "italic" },
+  modalCloseButton: {
+    backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 12,
+    paddingHorizontal: 40, alignItems: "center",
+  },
+  modalCloseText: { fontSize: 16, fontWeight: "bold", color: "#fff" },
 
   // Empty
   emptyContainer: { alignItems: "center", paddingVertical: 40, gap: 8 },
