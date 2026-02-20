@@ -27,6 +27,13 @@ export interface CustomerProfile {
   address: string;
 }
 
+export interface PointsEntry {
+  id: string;
+  amount: number;
+  reason: string;
+  date: string;
+}
+
 interface AppState {
   cart: CartItem[];
   favorites: FavoriteItem[];
@@ -34,6 +41,8 @@ interface AppState {
   deviceId: string;
   customerId: number | null;
   isAdminLoggedIn: boolean;
+  loyaltyPoints: number;
+  pointsHistory: PointsEntry[];
 }
 
 type Action =
@@ -46,6 +55,7 @@ type Action =
   | { type: "SET_DEVICE_ID"; payload: string }
   | { type: "SET_CUSTOMER_ID"; payload: number }
   | { type: "SET_ADMIN_LOGGED_IN"; payload: boolean }
+  | { type: "ADD_POINTS"; payload: { amount: number; reason: string } }
   | { type: "LOAD_STATE"; payload: Partial<AppState> };
 
 const initialState: AppState = {
@@ -55,6 +65,8 @@ const initialState: AppState = {
   deviceId: "",
   customerId: null,
   isAdminLoggedIn: false,
+  loyaltyPoints: 0,
+  pointsHistory: [],
 };
 
 function appReducer(state: AppState, action: Action): AppState {
@@ -83,6 +95,19 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, customerId: action.payload };
     case "SET_ADMIN_LOGGED_IN":
       return { ...state, isAdminLoggedIn: action.payload };
+    case "ADD_POINTS": {
+      const entry: PointsEntry = {
+        id: Date.now().toString(36),
+        amount: action.payload.amount,
+        reason: action.payload.reason,
+        date: new Date().toISOString(),
+      };
+      return {
+        ...state,
+        loyaltyPoints: state.loyaltyPoints + action.payload.amount,
+        pointsHistory: [entry, ...state.pointsHistory],
+      };
+    }
     case "LOAD_STATE":
       return { ...state, ...action.payload };
     default:
@@ -103,6 +128,7 @@ interface AppContextType {
   cartTotal: () => number;
   setProfile: (data: Partial<CustomerProfile>) => void;
   setAdminLoggedIn: (value: boolean) => void;
+  addPoints: (amount: number, reason: string) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -148,9 +174,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         profile: state.profile,
         deviceId: state.deviceId,
         customerId: state.customerId,
+        loyaltyPoints: state.loyaltyPoints,
+        pointsHistory: state.pointsHistory,
       }));
     }
-  }, [state.cart, state.favorites, state.profile, state.deviceId, state.customerId]);
+  }, [state.cart, state.favorites, state.profile, state.deviceId, state.customerId, state.loyaltyPoints, state.pointsHistory]);
 
   const addToCart = useCallback((item: CartItem) => dispatch({ type: "ADD_TO_CART", payload: item }), []);
   const removeFromCart = useCallback((id: number) => dispatch({ type: "REMOVE_FROM_CART", payload: id }), []);
@@ -162,12 +190,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const cartTotal = useCallback(() => state.cart.reduce((sum, i) => sum + parseFloat(i.price) * i.quantity, 0), [state.cart]);
   const setProfile = useCallback((data: Partial<CustomerProfile>) => dispatch({ type: "SET_PROFILE", payload: data }), []);
   const setAdminLoggedIn = useCallback((value: boolean) => dispatch({ type: "SET_ADMIN_LOGGED_IN", payload: value }), []);
+  const addPoints = useCallback((amount: number, reason: string) => dispatch({ type: "ADD_POINTS", payload: { amount, reason } }), []);
 
   return (
     <AppContext.Provider value={{
       state, dispatch, addToCart, removeFromCart, clearCart,
       addToFavorites, removeFromFavorites, isFavorite, isInCart,
-      cartTotal, setProfile, setAdminLoggedIn,
+      cartTotal, setProfile, setAdminLoggedIn, addPoints,
     }}>
       {children}
     </AppContext.Provider>

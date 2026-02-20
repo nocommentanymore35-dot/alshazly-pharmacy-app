@@ -53,6 +53,13 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="loyalty"
+        options={{
+          title: "الولاء",
+          tabBarIcon: ({ color }) => <IconSymbol size={26} name="gift.fill" color={color} />,
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "الملف الشخصي",

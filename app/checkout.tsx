@@ -9,7 +9,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { state, clearCart, cartTotal } = useAppStore();
+  const { state, clearCart, cartTotal, addPoints } = useAppStore();
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "vodafone_cash">("cash");
   const [submitting, setSubmitting] = useState(false);
 
@@ -38,10 +38,16 @@ export default function CheckoutScreen() {
         })),
       });
 
+      // Add loyalty points: 1 point per 1 EGP
+      const earnedPoints = Math.floor(cartTotal());
+      if (earnedPoints > 0) {
+        addPoints(earnedPoints, `طلب #${orderId}`);
+      }
+
       clearCart();
       Alert.alert(
         "تم تأكيد الطلب",
-        `تم إرسال طلبك بنجاح! رقم الطلب: #${orderId}\n\nسيتم التواصل معك قريباً.`,
+        `تم إرسال طلبك بنجاح! رقم الطلب: #${orderId}\n\n🎁 لقد حصلت على ${earnedPoints} نقطة ولاء!\n\nسيتم التواصل معك قريباً.`,
         [{ text: "حسناً", onPress: () => router.replace("/(tabs)/profile" as any) }]
       );
     } catch (e) {
