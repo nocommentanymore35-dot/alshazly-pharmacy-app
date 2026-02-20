@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Text, View, ScrollView, Alert, ActivityIndicator, StyleSheet, Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -13,6 +13,7 @@ export default function CheckoutScreen() {
   const { state, clearCart, cartTotal, addLoyaltyPoints } = useAppStore();
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "vodafone_cash">("cash");
   const [submitting, setSubmitting] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const createOrderMutation = trpc.orders.create.useMutation();
 
@@ -74,7 +75,7 @@ export default function CheckoutScreen() {
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+        <ScrollView ref={scrollViewRef} style={styles.body} showsVerticalScrollIndicator={false}>
           {/* Customer Info Summary */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>بيانات التوصيل</Text>
@@ -156,7 +157,13 @@ export default function CheckoutScreen() {
             </Pressable>
 
             <Pressable
-              onPress={() => setPaymentMethod("vodafone_cash")}
+              onPress={() => {
+                setPaymentMethod("vodafone_cash");
+                // Auto-scroll to show Vodafone Cash details
+                setTimeout(() => {
+                  scrollViewRef.current?.scrollToEnd({ animated: true });
+                }, 150);
+              }}
               style={({ pressed }) => [
                 styles.paymentOption,
                 paymentMethod === "vodafone_cash" && styles.paymentOptionActive,
