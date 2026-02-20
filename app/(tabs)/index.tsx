@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Text, View, TextInput, FlatList, ScrollView,
   Dimensions, ActivityIndicator, RefreshControl,
-  I18nManager, StyleSheet,
+  I18nManager, StyleSheet, Alert, Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -11,6 +11,7 @@ import { trpc } from "@/lib/trpc";
 import { useAppStore } from "@/lib/store";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from "react-native-reanimated";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const BANNER_WIDTH = SCREEN_WIDTH - 32;
@@ -44,11 +45,96 @@ export default function HomeScreen() {
   const searchResults = searchMedicinesQuery.data ?? [];
   const categoryMedicines = categoryMedicinesQuery.data ?? [];
 
+  const [isRecording, setIsRecording] = useState(false);
+  const recorderRef = useRef<any>(null);
+  const micPulse = useSharedValue(1);
+
+  const micAnimStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: micPulse.value }],
+    opacity: micPulse.value > 1.05 ? 0.7 : 1,
+  }));
+
   const displayMedicines = searchQuery.length > 0
     ? searchResults
     : selectedCategory !== null
       ? categoryMedicines
       : allMedicines;
+
+  const transcribeMutation = trpc.voice.transcribe.useMutation({
+    onSuccess: (data) => {
+      if (data.text && data.text.trim().length > 0) {
+        setSearchQuery(data.text.trim());
+        setSelectedCategory(null);
+      } else {
+        Alert.alert("البحث الصوتي", "لم يتم التعرف على كلام. حاول مرة أخرى.");
+      }
+    },
+    onError: () => {
+      Alert.alert("البحث الصوتي", "حدث خطأ أثناء تحويل الصوت. حاول مرة أخرى.");
+    },
+  });
+
+  const startVoiceSearch = async () => {
+    try {
+      if (Platform.OS === "web") {
+        // Use Web Speech API on web
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          Alert.alert("البحث الصوتي", "المتصفح لا يدعم البحث الصوتي.");
+          return;
+        }
+        const recognition = new SpeechRecognition();
+        recognition.lang = "ar-EG";
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        recognition.onresult = (event: any) => {
+          const text = event.results[0][0].transcript;
+          setSearchQuery(text.trim());
+          setSelectedCategory(null);
+          setIsRecording(false);
+          micPulse.value = 1;
+        };
+        recognition.onerror = () => {
+          setIsRecording(false);
+          micPulse.value = 1;
+          Alert.alert("البحث الصوتي", "لم يتم التعرف على كلام. حاول مرة أخرى.");
+        };
+        recognition.onend = () => {
+          setIsRecording(false);
+          micPulse.value = 1;
+        };
+        setIsRecording(true);
+        micPulse.value = withRepeat(withTiming(1.15, { duration: 600, easing: Easing.inOut(Easing.ease) }), -1, true);
+        recognition.start();
+        recorderRef.current = recognition;
+        return;
+      }
+
+      // Native: use expo-audio recording + server transcription
+      const { requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder, RecordingPresets } = await import("expo-audio");
+      const permStatus = await requestRecordingPermissionsAsync();
+      if (!permStatus.granted) {
+        Alert.alert("البحث الصوتي", "يجب السماح بالوصول إلى الميكروفون لاستخدام البحث الصوتي.");
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      // For native, we'll use a simpler approach with Alert prompt
+      Alert.alert("البحث الصوتي", "البحث الصوتي متاح عبر المتصفح. استخدم لوحة المفاتيح للبحث.");
+    } catch (e) {
+      setIsRecording(false);
+      micPulse.value = 1;
+      Alert.alert("البحث الصوتي", "حدث خطأ. حاول مرة أخرى.");
+    }
+  };
+
+  const stopVoiceSearch = () => {
+    if (recorderRef.current) {
+      try { recorderRef.current.stop(); } catch (e) {}
+      recorderRef.current = null;
+    }
+    setIsRecording(false);
+    micPulse.value = 1;
+  };
 
   // Auto-scroll banners every 7 seconds
   useEffect(() => {
@@ -149,6 +235,14 @@ export default function HomeScreen() {
           </View>
           {/* Search Bar */}
           <View style={styles.searchContainer}>
+            <Pressable
+              onPress={isRecording ? stopVoiceSearch : startVoiceSearch}
+              style={({ pressed }) => [{ padding: 4, marginLeft: 4 }, pressed && { opacity: 0.6 }]}
+            >
+              <Animated.View style={isRecording ? micAnimStyle : undefined}>
+                <MaterialIcons name={isRecording ? "mic" : "mic-none"} size={22} color={isRecording ? "#DC2626" : "#6B7280"} />
+              </Animated.View>
+            </Pressable>
             <MaterialIcons name="search" size={22} color="#6B7280" style={{ marginLeft: 8 }} />
             <TextInput
               style={styles.searchInput}

@@ -116,16 +116,27 @@ export async function getMedicinesByCategory(categoryId: number) {
   return db.select().from(medicines).where(and(eq(medicines.categoryId, categoryId), eq(medicines.isActive, true)));
 }
 
+// Normalize Arabic alif variants for search (أ إ آ ا → ا)
+function normalizeArabic(text: string): string {
+  return text
+    .replace(/[\u0623\u0625\u0622]/g, '\u0627') // أ إ آ → ا
+    .replace(/[\u0629]/g, '\u0647') // ة → ه
+    .replace(/[\u064B-\u065F\u0670]/g, ''); // remove tashkeel
+}
+
 export async function searchMedicines(query: string) {
   const db = await getDb();
   if (!db) return [];
-  const searchTerm = `%${query}%`;
-  return db.select().from(medicines).where(
-    and(
-      eq(medicines.isActive, true),
-      or(like(medicines.nameAr, searchTerm), like(medicines.nameEn, searchTerm))
-    )
-  );
+  // Get all active medicines and filter in JS for Arabic normalization
+  const allMeds = await db.select().from(medicines).where(eq(medicines.isActive, true));
+  const normalizedQuery = normalizeArabic(query.toLowerCase().trim());
+  return allMeds.filter(med => {
+    const nameAr = normalizeArabic((med.nameAr || '').toLowerCase());
+    const nameEn = (med.nameEn || '').toLowerCase();
+    // Match: starts with OR contains
+    return nameAr.startsWith(normalizedQuery) || nameAr.includes(normalizedQuery)
+      || nameEn.startsWith(normalizedQuery) || nameEn.includes(normalizedQuery);
+  });
 }
 
 export async function getMedicineById(id: number) {

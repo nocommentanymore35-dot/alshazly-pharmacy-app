@@ -157,6 +157,24 @@ export const appRouter = router({
     reset: publicProcedure.mutation(() => db.resetSalesReport()),
   }),
 
+  // Voice Search (Speech-to-Text)
+  voice: router({
+    transcribe: publicProcedure
+      .input(z.object({ audioUrl: z.string() }))
+      .mutation(async ({ input }) => {
+        const { transcribeAudio } = await import("./_core/voiceTranscription");
+        const result = await transcribeAudio({
+          audioUrl: input.audioUrl,
+          language: "ar",
+          prompt: "بحث عن أدوية صيدلية",
+        });
+        if ("error" in result) {
+          return { text: "", error: (result as any).error };
+        }
+        return { text: (result as any).text };
+      }),
+  }),
+
   // File Upload
   upload: router({
     image: publicProcedure

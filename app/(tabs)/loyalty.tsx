@@ -287,9 +287,9 @@ export default function LoyaltyScreen() {
           activeOpacity={0.7}
           onPress={() => setShowDeveloperModal(true)}
         >
-          <MaterialIcons name="code" size={20} color="#6B7280" />
+          <MaterialIcons name="code" size={20} color="#FFFFFF" />
           <Text style={styles.developerButtonText}>مطور التطبيق</Text>
-          <MaterialIcons name="chevron-right" size={20} color="#9CA3AF" />
+          <MaterialIcons name="chevron-right" size={20} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
 
@@ -546,10 +546,10 @@ const styles = StyleSheet.create({
   developerSection: { paddingHorizontal: 16, paddingTop: 24 },
   developerButton: {
     flexDirection: "row", alignItems: "center", gap: 10,
-    backgroundColor: "#F3F4F6", borderRadius: 12, padding: 16,
-    borderWidth: 1, borderColor: "#E5E7EB",
+    backgroundColor: "#DC2626", borderRadius: 12, padding: 16,
+    borderWidth: 1, borderColor: "#B91C1C",
   },
-  developerButtonText: { flex: 1, fontSize: 15, fontWeight: "600", color: "#6B7280", textAlign: "right" },
+  developerButtonText: { flex: 1, fontSize: 15, fontWeight: "700", color: "#FFFFFF", textAlign: "right" },
 
   // Modal
   modalOverlay: {
