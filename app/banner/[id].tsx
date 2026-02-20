@@ -17,7 +17,7 @@ export default function BannerDetailScreen() {
     return (
       <ScreenContainer edges={["top", "left", "right", "bottom"]}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#2563EB" />
+          <ActivityIndicator size="large" color="#4169E1" />
         </View>
       </ScreenContainer>
     );
@@ -41,7 +41,7 @@ export default function BannerDetailScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="arrow-forward" size={24} color="#2563EB" />
+            <MaterialIcons name="arrow-forward" size={24} color="#4169E1" />
           </Pressable>
           <Text style={styles.headerTitle}>تفاصيل الإعلان</Text>
           <View style={{ width: 40 }} />
@@ -51,7 +51,7 @@ export default function BannerDetailScreen() {
           {banner.imageUrl ? (
             <Image source={{ uri: banner.imageUrl }} style={styles.image} contentFit="cover" />
           ) : (
-            <View style={[styles.image, { backgroundColor: "#2563EB", justifyContent: "center", alignItems: "center" }]}>
+            <View style={[styles.image, { backgroundColor: "#4169E1", justifyContent: "center", alignItems: "center" }]}>
               <MaterialIcons name="campaign" size={80} color="#fff" />
             </View>
           )}
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   errorText: { fontSize: 16, color: "#6B7280" },
-  backButton: { marginTop: 16, backgroundColor: "#2563EB", paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
+  backButton: { marginTop: 16, backgroundColor: "#4169E1", paddingHorizontal: 24, paddingVertical: 10, borderRadius: 8 },
   backButtonText: { color: "#fff", fontSize: 15, fontWeight: "600" },
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",

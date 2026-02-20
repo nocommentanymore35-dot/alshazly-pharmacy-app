@@ -13,8 +13,14 @@ export default function FavoritesScreen() {
 
   const handleAddToCart = (item: FavoriteItem) => {
     if (isInCart(item.medicineId)) return;
-    // Navigate to medicine detail to choose unit type and quantity
-    router.push(`/medicine/${item.medicineId}` as any);
+    addToCart({
+      medicineId: item.medicineId,
+      nameAr: item.nameAr,
+      nameEn: item.nameEn,
+      price: item.price,
+      quantity: 1,
+      imageUrl: item.imageUrl,
+    });
   };
 
   const renderFavoriteItem = ({ item }: { item: FavoriteItem }) => (
@@ -26,7 +32,7 @@ export default function FavoritesScreen() {
         <Image source={{ uri: item.imageUrl }} style={styles.itemImage} contentFit="cover" />
       ) : (
         <View style={[styles.itemImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
-          <MaterialIcons name="medication" size={30} color="#2563EB" />
+          <MaterialIcons name="medication" size={30} color="#4169E1" />
         </View>
       )}
       <View style={styles.itemInfo}>
@@ -43,7 +49,7 @@ export default function FavoritesScreen() {
             pressed && { opacity: 0.7 },
           ]}
         >
-          <MaterialIcons name="shopping-cart" size={18} color={isInCart(item.medicineId) ? "#9CA3AF" : "#2563EB"} />
+          <MaterialIcons name="shopping-cart" size={18} color={isInCart(item.medicineId) ? "#9CA3AF" : "#4169E1"} />
         </Pressable>
         <Pressable
           onPress={() => removeFromFavorites(item.medicineId)}
@@ -56,7 +62,7 @@ export default function FavoritesScreen() {
   );
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>المفضلة</Text>
@@ -87,7 +93,7 @@ export default function FavoritesScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: {
-    backgroundColor: "#2563EB", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
+    backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16,
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
   },
   headerTitle: { fontSize: 22, fontWeight: "bold", color: "#fff" },
@@ -105,7 +111,7 @@ const styles = StyleSheet.create({
   itemInfo: { flex: 1, marginHorizontal: 12, justifyContent: "center" },
   itemName: { fontSize: 15, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   itemNameEn: { fontSize: 11, color: "#6B7280", textAlign: "right" },
-  itemPrice: { fontSize: 15, fontWeight: "bold", color: "#2563EB", marginTop: 4, textAlign: "right" },
+  itemPrice: { fontSize: 15, fontWeight: "bold", color: "#4169E1", marginTop: 4, textAlign: "right" },
   actions: { justifyContent: "center", gap: 8 },
   addBtn: { padding: 8, backgroundColor: "#F3F4F6", borderRadius: 8 },
   addBtnDisabled: { backgroundColor: "#F9FAFB" },

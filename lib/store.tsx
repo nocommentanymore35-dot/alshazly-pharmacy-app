@@ -3,16 +3,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
 // Types
-export type UnitType = "strip" | "box";
-
 export interface CartItem {
   medicineId: number;
   nameAr: string;
   nameEn: string;
-  price: string; // price per box
+  price: string;
   quantity: number;
-  unitType: UnitType; // "strip" or "box"
-  stripsPerBox: number; // how many strips in one box
   imageUrl?: string;
 }
 
@@ -31,19 +27,6 @@ export interface CustomerProfile {
   address: string;
 }
 
-export interface LoyaltyTransaction {
-  id: string;
-  date: string; // ISO date
-  points: number;
-  description: string;
-  orderId?: number;
-}
-
-export interface LoyaltyState {
-  totalPoints: number;
-  transactions: LoyaltyTransaction[];
-}
-
 interface AppState {
   cart: CartItem[];
   favorites: FavoriteItem[];
@@ -51,7 +34,6 @@ interface AppState {
   deviceId: string;
   customerId: number | null;
   isAdminLoggedIn: boolean;
-  loyalty: LoyaltyState;
 }
 
 type Action =
@@ -64,7 +46,6 @@ type Action =
   | { type: "SET_DEVICE_ID"; payload: string }
   | { type: "SET_CUSTOMER_ID"; payload: number }
   | { type: "SET_ADMIN_LOGGED_IN"; payload: boolean }
-  | { type: "ADD_LOYALTY_POINTS"; payload: { points: number; description: string; orderId?: number } }
   | { type: "LOAD_STATE"; payload: Partial<AppState> };
 
 const initialState: AppState = {
@@ -74,7 +55,6 @@ const initialState: AppState = {
   deviceId: "",
   customerId: null,
   isAdminLoggedIn: false,
-  loyalty: { totalPoints: 0, transactions: [] },
 };
 
 function appReducer(state: AppState, action: Action): AppState {
@@ -103,55 +83,11 @@ function appReducer(state: AppState, action: Action): AppState {
       return { ...state, customerId: action.payload };
     case "SET_ADMIN_LOGGED_IN":
       return { ...state, isAdminLoggedIn: action.payload };
-    case "ADD_LOYALTY_POINTS": {
-      const transaction: LoyaltyTransaction = {
-        id: "txn_" + Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
-        date: new Date().toISOString(),
-        points: action.payload.points,
-        description: action.payload.description,
-        orderId: action.payload.orderId,
-      };
-      return {
-        ...state,
-        loyalty: {
-          totalPoints: state.loyalty.totalPoints + action.payload.points,
-          transactions: [transaction, ...state.loyalty.transactions],
-        },
-      };
-    }
     case "LOAD_STATE":
       return { ...state, ...action.payload };
     default:
       return state;
   }
-}
-
-// Helper to calculate item total price
-export function calcItemTotal(item: CartItem): number {
-  const boxPrice = parseFloat(item.price);
-  const stripsPerBox = item.stripsPerBox || 1;
-  if (item.unitType === "strip") {
-    const stripPrice = boxPrice / stripsPerBox;
-    return stripPrice * item.quantity;
-  }
-  return boxPrice * item.quantity;
-}
-
-// Helper to get unit label
-export function getUnitLabel(unitType: UnitType, quantity: number): string {
-  if (unitType === "strip") {
-    return quantity === 1 ? "شريط" : quantity === 2 ? "شريطين" : `${quantity} شرائط`;
-  }
-  return quantity === 1 ? "علبة" : quantity === 2 ? "علبتين" : `${quantity} علب`;
-}
-
-// Helper to get price per unit
-export function getPricePerUnit(boxPrice: string, stripsPerBox: number, unitType: UnitType): number {
-  const price = parseFloat(boxPrice);
-  if (unitType === "strip") {
-    return price / (stripsPerBox || 1);
-  }
-  return price;
 }
 
 interface AppContextType {
@@ -167,7 +103,6 @@ interface AppContextType {
   cartTotal: () => number;
   setProfile: (data: Partial<CustomerProfile>) => void;
   setAdminLoggedIn: (value: boolean) => void;
-  addLoyaltyPoints: (points: number, description: string, orderId?: number) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -188,14 +123,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
-          // Migrate old cart items that don't have unitType
-          if (parsed.cart) {
-            parsed.cart = parsed.cart.map((item: any) => ({
-              ...item,
-              unitType: item.unitType || "box",
-              stripsPerBox: item.stripsPerBox || 1,
-            }));
-          }
           dispatch({ type: "LOAD_STATE", payload: parsed });
           if (!parsed.deviceId) {
             const id = generateDeviceId();
@@ -221,10 +148,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         profile: state.profile,
         deviceId: state.deviceId,
         customerId: state.customerId,
-        loyalty: state.loyalty,
       }));
     }
-  }, [state.cart, state.favorites, state.profile, state.deviceId, state.customerId, state.loyalty]);
+  }, [state.cart, state.favorites, state.profile, state.deviceId, state.customerId]);
 
   const addToCart = useCallback((item: CartItem) => dispatch({ type: "ADD_TO_CART", payload: item }), []);
   const removeFromCart = useCallback((id: number) => dispatch({ type: "REMOVE_FROM_CART", payload: id }), []);
@@ -233,16 +159,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const removeFromFavorites = useCallback((id: number) => dispatch({ type: "REMOVE_FROM_FAVORITES", payload: id }), []);
   const isFavorite = useCallback((id: number) => state.favorites.some(i => i.medicineId === id), [state.favorites]);
   const isInCart = useCallback((id: number) => state.cart.some(i => i.medicineId === id), [state.cart]);
-  const cartTotal = useCallback(() => state.cart.reduce((sum, item) => sum + calcItemTotal(item), 0), [state.cart]);
+  const cartTotal = useCallback(() => state.cart.reduce((sum, i) => sum + parseFloat(i.price) * i.quantity, 0), [state.cart]);
   const setProfile = useCallback((data: Partial<CustomerProfile>) => dispatch({ type: "SET_PROFILE", payload: data }), []);
   const setAdminLoggedIn = useCallback((value: boolean) => dispatch({ type: "SET_ADMIN_LOGGED_IN", payload: value }), []);
-  const addLoyaltyPoints = useCallback((points: number, description: string, orderId?: number) => dispatch({ type: "ADD_LOYALTY_POINTS", payload: { points, description, orderId } }), []);
 
   return (
     <AppContext.Provider value={{
       state, dispatch, addToCart, removeFromCart, clearCart,
       addToFavorites, removeFromFavorites, isFavorite, isInCart,
-      cartTotal, setProfile, setAdminLoggedIn, addLoyaltyPoints,
+      cartTotal, setProfile, setAdminLoggedIn,
     }}>
       {children}
     </AppContext.Provider>

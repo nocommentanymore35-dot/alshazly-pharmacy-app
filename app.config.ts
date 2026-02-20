@@ -32,7 +32,7 @@ const env = {
   appSlug: "alshazly-pharmacy-app",
   // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
   // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "https://private-us-east-1.manuscdn.com/user_upload_by_module/session_file/310519663305726337/KZsdaUTuJlgnLrwn.png?Expires=1803077168&Signature=USXlix55haoDHk9J-3SP-G46x118eUfbnkHRjGOskxeZvV2jTAZaY3OBnDarZpQGNrPTlCSzLOzik4uGKPzQx1ECACBc8OpJFsRzcYv2OfJjU0HksN~F7lSVSVY~pHQNTSjlUzP4UPCQs~1AGXbJku90SAQh69xWvSf8kzir3fHnTLR08tk5GdpCKNl1hfE~tB7I2w9zeiQn68QTI6XSpSM~k-2z7E2SCts0G0zddKmfThBZrD5XpJL4tmzeH49RUVnbhG2lp56VC15~-Jlx4M~vqe3ygASIAkLcp~-SasrRU9l5gCiZnFmueaWHFW2-uVh8HUsHuNKSEpztt4om0w__&Key-Pair-Id=K2HSFNDJXOU9YS",
+  logoUrl: "https://private-us-east-1.manuscdn.com/user_upload_by_module/session_file/310519663305726337/KKJWMWsIszOTJGob.png?Expires=1803051615&Signature=NppIOSp7JgRPLIFmF2mMe443WSwXHRXoJvgPVw4KX9C2WdYFWJ10m5crhkyIhpsqrzB2p6Q5vqTSRLAZ1rbEAHZt8QywdESufOFmFH7f71rQCSwvRiuuTF1ACBGErGU5xjBSwVJTQvY9zL~X7897Tua0XQhyPc83DjfnVkjMf~fabldvJk1bx-zc8Z5uv8mHmX8iYP~XJI10ZSTUt9suAUU7XoZLABCY7hiifpZONTSFiyjIEljuuJI7XtC3~Axcg0fhsxooDj4dn~bRWRanhU3F3sev9GCciiD7jCBfnakq3ubRB6k0zpyiUiu6GLIkXWISvUqKabt0d6W1pVVH~A__&Key-Pair-Id=K2HSFNDJXOU9YS",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,
@@ -103,11 +103,11 @@ const config: ExpoConfig = {
       "expo-splash-screen",
       {
         image: "./assets/images/splash-icon.png",
-        imageWidth: 280,
+        imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#0A1628",
+        backgroundColor: "#ffffff",
         dark: {
-          backgroundColor: "#0A1628",
+          backgroundColor: "#000000",
         },
       },
     ],

@@ -1,16 +1,15 @@
 import { useState } from "react";
-import { Text, View, ScrollView, Alert, ActivityIndicator, StyleSheet, Platform } from "react-native";
+import { Text, View, ScrollView, Alert, ActivityIndicator, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
-import { useAppStore, calcItemTotal, getUnitLabel, getPricePerUnit } from "@/lib/store";
+import { useAppStore } from "@/lib/store";
 import { trpc } from "@/lib/trpc";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
-import * as ClipboardExpo from "expo-clipboard";
 
 export default function CheckoutScreen() {
   const router = useRouter();
-  const { state, clearCart, cartTotal, addLoyaltyPoints } = useAppStore();
+  const { state, clearCart, cartTotal } = useAppStore();
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "vodafone_cash">("cash");
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,29 +30,18 @@ export default function CheckoutScreen() {
         customerAddress: state.profile.address,
         totalAmount: cartTotal().toFixed(2),
         paymentMethod,
-        items: state.cart.map(item => {
-          const unitType = item.unitType || "box";
-          const stripsPerBox = item.stripsPerBox || 1;
-          const unitLabel = unitType === "strip" ? "شريط" : "علبة";
-          return {
-            medicineId: item.medicineId,
-            medicineName: `${item.nameAr} (${item.quantity} ${unitLabel})`,
-            quantity: item.quantity,
-            price: calcItemTotal(item).toFixed(2),
-          };
-        }),
+        items: state.cart.map(item => ({
+          medicineId: item.medicineId,
+          medicineName: item.nameAr,
+          quantity: item.quantity,
+          price: item.price,
+        })),
       });
-
-      // Add loyalty points: 1 point per EGP spent
-      const earnedPoints = Math.floor(cartTotal());
-      if (earnedPoints > 0) {
-        addLoyaltyPoints(earnedPoints, `طلب رقم #${orderId} (بقيمة ${cartTotal().toFixed(2)} ج.م)`, orderId);
-      }
 
       clearCart();
       Alert.alert(
-        "تم تأكيد الطلب ✅",
-        `تم إرسال طلبك بنجاح! رقم الطلب: #${orderId}\n\n🌟 تم إضافة ${earnedPoints} نقطة إلى رصيدك في برنامج الولاء!\n\nسيتم التواصل معك قريباً.`,
+        "تم تأكيد الطلب",
+        `تم إرسال طلبك بنجاح! رقم الطلب: #${orderId}\n\nسيتم التواصل معك قريباً.`,
         [{ text: "حسناً", onPress: () => router.replace("/(tabs)/profile" as any) }]
       );
     } catch (e) {
@@ -68,7 +56,7 @@ export default function CheckoutScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={() => router.back()} style={({ pressed }) => [styles.headerBtn, pressed && { opacity: 0.7 }]}>
-            <MaterialIcons name="arrow-forward" size={24} color="#2563EB" />
+            <MaterialIcons name="arrow-forward" size={24} color="#4169E1" />
           </Pressable>
           <Text style={styles.headerTitle}>إتمام الطلب</Text>
           <View style={{ width: 40 }} />
@@ -98,32 +86,17 @@ export default function CheckoutScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>ملخص الطلب</Text>
             <View style={styles.infoCard}>
-              {state.cart.map((item) => {
-                const unitType = item.unitType || "box";
-                const stripsPerBox = item.stripsPerBox || 1;
-                const unitPrice = getPricePerUnit(item.price, stripsPerBox, unitType);
-                const itemTotal = calcItemTotal(item);
-                const unitLabel = getUnitLabel(unitType, item.quantity);
-
-                return (
-                  <View key={item.medicineId} style={styles.orderItem}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.orderItemName}>{item.nameAr}</Text>
-                      <View style={styles.orderItemMeta}>
-                        <View style={styles.orderUnitBadge}>
-                          <Text style={styles.orderUnitBadgeText}>{unitLabel}</Text>
-                        </View>
-                        <Text style={styles.orderItemUnitPrice}>
-                          × {unitPrice.toFixed(2)} ج.م
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.orderItemPrice}>
-                      {itemTotal.toFixed(2)} ج.م
-                    </Text>
+              {state.cart.map((item) => (
+                <View key={item.medicineId} style={styles.orderItem}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.orderItemName}>{item.nameAr}</Text>
+                    <Text style={styles.orderItemQty}>الكمية: {item.quantity}</Text>
                   </View>
-                );
-              })}
+                  <Text style={styles.orderItemPrice}>
+                    {(parseFloat(item.price) * item.quantity).toFixed(2)} ج.م
+                  </Text>
+                </View>
+              ))}
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>الإجمالي</Text>
                 <Text style={styles.totalAmount}>{cartTotal().toFixed(2)} ج.م</Text>
@@ -146,9 +119,9 @@ export default function CheckoutScreen() {
               <View style={[styles.radio, paymentMethod === "cash" && styles.radioActive]}>
                 {paymentMethod === "cash" && <View style={styles.radioInner} />}
               </View>
-              <MaterialIcons name="payments" size={24} color={paymentMethod === "cash" ? "#2563EB" : "#6B7280"} />
+              <MaterialIcons name="payments" size={24} color={paymentMethod === "cash" ? "#4169E1" : "#6B7280"} />
               <View style={{ flex: 1, marginHorizontal: 12 }}>
-                <Text style={[styles.paymentTitle, paymentMethod === "cash" && { color: "#2563EB" }]}>
+                <Text style={[styles.paymentTitle, paymentMethod === "cash" && { color: "#4169E1" }]}>
                   الدفع عند الاستلام
                 </Text>
                 <Text style={styles.paymentDesc}>ادفع نقداً عند استلام الطلب</Text>
@@ -174,40 +147,6 @@ export default function CheckoutScreen() {
                 <Text style={styles.paymentDesc}>ادفع عبر محفظة فودافون كاش</Text>
               </View>
             </Pressable>
-
-            {/* Vodafone Cash Details */}
-            {paymentMethod === "vodafone_cash" && (
-              <View style={styles.vodafoneInfo}>
-                <Text style={styles.vodafoneTitle}>رقم الدفع بواسطة فودافون كاش هو :</Text>
-                <View style={styles.vodafoneNumberRow}>
-                  <Text style={styles.vodafoneNumber}>01095071082</Text>
-                  <Pressable
-                    onPress={async () => {
-                      try {
-                        await ClipboardExpo.setStringAsync("01095071082");
-                        Alert.alert("تم النسخ", "تم نسخ الرقم بنجاح");
-                      } catch {
-                        Alert.alert("تم النسخ", "تم نسخ الرقم بنجاح");
-                      }
-                    }}
-                    style={({ pressed }) => [styles.copyBtn, pressed && { opacity: 0.7 }]}
-                  >
-                    <MaterialIcons name="content-copy" size={16} color="#2563EB" />
-                    <Text style={styles.copyBtnText}>نسخ</Text>
-                  </Pressable>
-                </View>
-                <Text style={styles.vodafoneName}>محمد  ج***  خ****</Text>
-                <View style={styles.vodafoneNote}>
-                  <MaterialIcons name="info-outline" size={16} color="#F59E0B" />
-                  <Text style={styles.vodafoneNoteText}>
-                    ملحوظة: قم بنسخ الرقم أولاً{"\n"}ثم بعد ذلك اضغط على زر تأكيد الطلب أسفل الصفحة{"\n"}ثم قم بتحويل المبلغ من محفظتك
-                  </Text>
-                </View>
-                <View style={styles.vodafoneSafe}>
-                  <Text style={styles.vodafoneSafeText}>معاملتك آمنة تماماً 🔒</Text>
-                </View>
-              </View>
-            )}
           </View>
 
           <View style={{ height: 100 }} />
@@ -255,64 +194,34 @@ const styles = StyleSheet.create({
   infoText: { fontSize: 14, color: "#374151", flex: 1, textAlign: "right" },
   orderItem: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: "#F3F4F6",
   },
   orderItemName: { fontSize: 14, fontWeight: "600", color: "#1F2937", textAlign: "right" },
-  orderItemMeta: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 4 },
-  orderUnitBadge: {
-    backgroundColor: "#EFF6FF", paddingHorizontal: 8, paddingVertical: 2,
-    borderRadius: 10, borderWidth: 1, borderColor: "#BFDBFE",
-  },
-  orderUnitBadgeText: { fontSize: 11, fontWeight: "600", color: "#2563EB" },
-  orderItemUnitPrice: { fontSize: 12, color: "#6B7280" },
-  orderItemPrice: { fontSize: 14, fontWeight: "bold", color: "#2563EB", marginLeft: 8 },
+  orderItemQty: { fontSize: 12, color: "#6B7280", textAlign: "right" },
+  orderItemPrice: { fontSize: 14, fontWeight: "bold", color: "#4169E1" },
   totalRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",
     paddingTop: 12, marginTop: 4,
   },
   totalLabel: { fontSize: 16, fontWeight: "bold", color: "#1F2937" },
-  totalAmount: { fontSize: 20, fontWeight: "bold", color: "#2563EB" },
+  totalAmount: { fontSize: 20, fontWeight: "bold", color: "#4169E1" },
   paymentOption: {
     flexDirection: "row", alignItems: "center", backgroundColor: "#fff",
     borderRadius: 12, padding: 16, borderWidth: 1.5, borderColor: "#E5E7EB", marginBottom: 12,
   },
-  paymentOptionActive: { borderColor: "#2563EB", backgroundColor: "#F0F4FF" },
+  paymentOptionActive: { borderColor: "#4169E1", backgroundColor: "#F0F4FF" },
   radio: {
     width: 22, height: 22, borderRadius: 11, borderWidth: 2,
     borderColor: "#D1D5DB", justifyContent: "center", alignItems: "center",
   },
-  radioActive: { borderColor: "#2563EB" },
-  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#2563EB" },
+  radioActive: { borderColor: "#4169E1" },
+  radioInner: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#4169E1" },
   paymentTitle: { fontSize: 15, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   paymentDesc: { fontSize: 12, color: "#6B7280", marginTop: 2, textAlign: "right" },
   bottomBar: { padding: 16, backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#E5E7EB" },
   submitBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
-    backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 16, gap: 8,
+    backgroundColor: "#4169E1", borderRadius: 12, paddingVertical: 16, gap: 8,
   },
   submitText: { color: "#fff", fontSize: 17, fontWeight: "bold" },
-  vodafoneInfo: {
-    backgroundColor: "#FFF7ED", borderRadius: 12, padding: 16,
-    borderWidth: 1.5, borderColor: "#FDBA74", marginTop: 4,
-  },
-  vodafoneTitle: { fontSize: 14, fontWeight: "bold", color: "#1F2937", textAlign: "right", marginBottom: 8 },
-  vodafoneNumberRow: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    gap: 12, marginBottom: 6,
-  },
-  vodafoneNumber: { fontSize: 22, fontWeight: "bold", color: "#DC2626", letterSpacing: 1 },
-  copyBtn: {
-    flexDirection: "row", alignItems: "center", gap: 4,
-    backgroundColor: "#EFF6FF", paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8,
-    borderWidth: 1, borderColor: "#BFDBFE",
-  },
-  copyBtnText: { fontSize: 12, fontWeight: "600", color: "#2563EB" },
-  vodafoneName: { fontSize: 15, fontWeight: "600", color: "#374151", textAlign: "center", marginBottom: 12 },
-  vodafoneNote: {
-    flexDirection: "row", gap: 8, backgroundColor: "#FFFBEB",
-    borderRadius: 8, padding: 10, marginBottom: 10,
-  },
-  vodafoneNoteText: { fontSize: 13, color: "#92400E", flex: 1, textAlign: "right", lineHeight: 20 },
-  vodafoneSafe: { alignItems: "center", marginTop: 4 },
-  vodafoneSafeText: { fontSize: 14, fontWeight: "600", color: "#059669" },
 });

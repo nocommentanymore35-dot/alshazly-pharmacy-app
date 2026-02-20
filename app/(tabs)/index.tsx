@@ -5,6 +5,7 @@ import {
   I18nManager, StyleSheet,
 } from "react-native";
 import { Image } from "expo-image";
+import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
 import { trpc } from "@/lib/trpc";
@@ -14,7 +15,7 @@ import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const BANNER_WIDTH = SCREEN_WIDTH - 32;
-const BANNER_HEIGHT = 200;
+const BANNER_HEIGHT = 160;
 const BANNER_INTERVAL = 7000;
 
 export default function HomeScreen() {
@@ -81,20 +82,16 @@ export default function HomeScreen() {
       {item.imageUrl ? (
         <Image source={{ uri: item.imageUrl }} style={styles.bannerImage} contentFit="cover" />
       ) : (
-        <View style={[styles.bannerImage, { backgroundColor: "#2563EB", justifyContent: "center", alignItems: "center" }]}>
+        <View style={[styles.bannerImage, { backgroundColor: "#4169E1", justifyContent: "center", alignItems: "center" }]}>
           <MaterialIcons name="local-pharmacy" size={48} color="#fff" />
         </View>
       )}
-      {/* Text overlay at bottom-right if exists */}
-      {(item.title || item.description) ? (
-        <View style={styles.bannerTextOverlay}>
-          {item.title ? <Text style={styles.bannerTitle} numberOfLines={1}>{item.title}</Text> : null}
-          {item.description ? <Text style={styles.bannerDesc} numberOfLines={1}>{item.description}</Text> : null}
+      <View style={styles.bannerOverlay}>
+        <Text style={styles.bannerTitle}>{item.title}</Text>
+        {item.description ? <Text style={styles.bannerDesc}>{item.description}</Text> : null}
+        <View style={styles.bannerButton}>
+          <Text style={styles.bannerButtonText}>تفاصيل</Text>
         </View>
-      ) : null}
-      {/* Details button - small, bottom-left */}
-      <View style={styles.bannerDetailsBtn}>
-        <Text style={styles.bannerDetailsBtnText}>تفاصيل</Text>
       </View>
     </Pressable>
   );
@@ -108,7 +105,7 @@ export default function HomeScreen() {
         <Image source={{ uri: item.imageUrl }} style={styles.medicineImage} contentFit="cover" />
       ) : (
         <View style={[styles.medicineImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
-          <MaterialIcons name="medication" size={40} color="#2563EB" />
+          <MaterialIcons name="medication" size={40} color="#4169E1" />
         </View>
       )}
       <View style={styles.medicineInfo}>
@@ -135,13 +132,9 @@ export default function HomeScreen() {
   );
 
   return (
-    <ScreenContainer edges={["left", "right"]} containerClassName="bg-background">
-      <ScrollView
-        style={styles.container}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#2563EB" />}
-      >
-        {/* Header with blue background + curved bottom */}
+    <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#4169E1]">
+      <View style={styles.container}>
+        {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>صيدلية الشاذلي</Text>
@@ -167,110 +160,109 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </View>
-        </View>
 
-        {/* Banners - OUTSIDE blue header, on white background */}
-        {banners.length > 0 && (
-          <View style={styles.bannerSection}>
-            <FlatList
-              ref={bannerRef}
-              data={banners}
-              renderItem={renderBanner}
-              keyExtractor={(item) => item.id.toString()}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={BANNER_WIDTH + 12}
-              decelerationRate="fast"
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
-              onMomentumScrollEnd={(e) => {
-                const index = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + 12));
-                setCurrentBanner(index);
-              }}
-              getItemLayout={(_, index) => ({
-                length: BANNER_WIDTH + 12,
-                offset: (BANNER_WIDTH + 12) * index,
-                index,
-              })}
-            />
-            {/* Pagination dots */}
-            <View style={styles.dotsContainer}>
-              {banners.map((_, i) => (
-                <View key={i} style={[styles.dot, i === currentBanner && styles.dotActive]} />
-              ))}
+          {/* Banners - directly under search */}
+          {banners.length > 0 && (
+            <View style={styles.bannerSection}>
+              <FlatList
+                ref={bannerRef}
+                data={banners}
+                renderItem={renderBanner}
+                keyExtractor={(item) => item.id.toString()}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                snapToInterval={BANNER_WIDTH + 12}
+                decelerationRate="fast"
+                contentContainerStyle={{ paddingHorizontal: 16 }}
+                ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+                onMomentumScrollEnd={(e) => {
+                  const index = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + 12));
+                  setCurrentBanner(index);
+                }}
+                getItemLayout={(_, index) => ({
+                  length: BANNER_WIDTH + 12,
+                  offset: (BANNER_WIDTH + 12) * index,
+                  index,
+                })}
+              />
+              {/* Pagination dots */}
+              <View style={styles.dotsContainer}>
+                {banners.map((_, i) => (
+                  <View key={i} style={[styles.dot, i === currentBanner && styles.dotActive]} />
+                ))}
+              </View>
             </View>
-          </View>
-        )}
-
-        {/* Categories */}
-        {categories.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>الفئات</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
-              <Pressable
-                onPress={() => setSelectedCategory(null)}
-                style={({ pressed }) => [
-                  styles.categoryChip,
-                  selectedCategory === null && styles.categoryChipActive,
-                  pressed && { opacity: 0.8 },
-                ]}
-              >
-                <Text style={[styles.categoryChipText, selectedCategory === null && styles.categoryChipTextActive]}>الكل</Text>
-              </Pressable>
-              {categories.map((cat: any) => (
-                <Pressable
-                  key={cat.id}
-                  onPress={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
-                  style={({ pressed }) => [
-                    styles.categoryChip,
-                    selectedCategory === cat.id && styles.categoryChipActive,
-                    pressed && { opacity: 0.8 },
-                  ]}
-                >
-                  <Text style={[styles.categoryChipText, selectedCategory === cat.id && styles.categoryChipTextActive]}>{cat.nameAr}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* Medicines */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>الأدوية ({displayMedicines.length})</Text>
-          {(medicinesQuery.isLoading || searchMedicinesQuery.isLoading || categoryMedicinesQuery.isLoading) ? (
-            <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 20 }} />
-          ) : displayMedicines.length === 0 ? (
-            <View style={styles.emptyState}>
-              <MaterialIcons name="medication" size={48} color="#D1D5DB" />
-              <Text style={styles.emptyText}>
-                {searchQuery.length > 0 ? "لا توجد نتائج للبحث" : "لا توجد أدوية حالياً"}
-              </Text>
-              <Text style={styles.emptySubtext}>
-                {searchQuery.length > 0 ? "جرب كلمات بحث مختلفة" : "سيتم إضافة الأدوية قريباً"}
-              </Text>
-            </View>
-          ) : (
-            displayMedicines.map((med: any) => renderMedicine({ item: med }))
           )}
         </View>
 
-        <View style={{ height: 100 }} />
-      </ScrollView>
+        <ScrollView
+          style={styles.body}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#4169E1" />}
+        >
+          {/* Categories */}
+          {categories.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>الفئات</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}>
+                <Pressable
+                  onPress={() => setSelectedCategory(null)}
+                  style={({ pressed }) => [
+                    styles.categoryChip,
+                    selectedCategory === null && styles.categoryChipActive,
+                    pressed && { opacity: 0.8 },
+                  ]}
+                >
+                  <Text style={[styles.categoryChipText, selectedCategory === null && styles.categoryChipTextActive]}>الكل</Text>
+                </Pressable>
+                {categories.map((cat: any) => (
+                  <Pressable
+                    key={cat.id}
+                    onPress={() => setSelectedCategory(cat.id === selectedCategory ? null : cat.id)}
+                    style={({ pressed }) => [
+                      styles.categoryChip,
+                      selectedCategory === cat.id && styles.categoryChipActive,
+                      pressed && { opacity: 0.8 },
+                    ]}
+                  >
+                    <Text style={[styles.categoryChipText, selectedCategory === cat.id && styles.categoryChipTextActive]}>{cat.nameAr}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Medicines */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>الأدوية ({displayMedicines.length})</Text>
+            {(medicinesQuery.isLoading || searchMedicinesQuery.isLoading || categoryMedicinesQuery.isLoading) ? (
+              <ActivityIndicator size="large" color="#4169E1" style={{ marginTop: 20 }} />
+            ) : displayMedicines.length === 0 ? (
+              <View style={styles.emptyState}>
+                <MaterialIcons name="medication" size={48} color="#D1D5DB" />
+                <Text style={styles.emptyText}>
+                  {searchQuery.length > 0 ? "لا توجد نتائج للبحث" : "لا توجد أدوية حالياً"}
+                </Text>
+                <Text style={styles.emptySubtext}>
+                  {searchQuery.length > 0 ? "جرب كلمات بحث مختلفة" : "سيتم إضافة الأدوية قريباً"}
+                </Text>
+              </View>
+            ) : (
+              displayMedicines.map((med: any) => renderMedicine({ item: med }))
+            )}
+          </View>
+
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      </View>
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  header: {
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 16,
-    paddingTop: 48,
-    paddingBottom: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-  },
+  header: { backgroundColor: "#4169E1", paddingHorizontal: 16, paddingTop: 48, paddingBottom: 16 },
   headerContent: { alignItems: "center", marginBottom: 12 },
   headerTitle: { fontSize: 24, fontWeight: "bold", color: "#fff", textAlign: "center" },
   headerSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 4, textAlign: "center" },
@@ -279,35 +271,33 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 12, height: 44,
   },
   searchInput: { flex: 1, fontSize: 15, color: "#1F2937", textAlign: "right", paddingHorizontal: 8 },
-  bannerSection: { marginTop: 16, paddingBottom: 8 },
+  body: { flex: 1, backgroundColor: "#fff" },
+  bannerSection: { marginTop: 12, paddingBottom: 8 },
   bannerItem: { width: BANNER_WIDTH, height: BANNER_HEIGHT, borderRadius: 12, overflow: "hidden" },
   bannerImage: { width: "100%", height: "100%", borderRadius: 12 },
-  bannerTextOverlay: {
-    position: "absolute", bottom: 0, left: 0, right: 0,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    borderBottomLeftRadius: 12, borderBottomRightRadius: 12,
-    paddingHorizontal: 12, paddingVertical: 8,
+  bannerOverlay: {
+    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: "rgba(26,60,110,0.55)", borderRadius: 12,
+    justifyContent: "center", alignItems: "center", padding: 16,
   },
-  bannerTitle: { fontSize: 15, fontWeight: "bold", color: "#fff", textAlign: "right" },
-  bannerDesc: { fontSize: 12, color: "rgba(255,255,255,0.9)", textAlign: "right", marginTop: 2 },
-  bannerDetailsBtn: {
-    position: "absolute", bottom: 8, left: 8,
-    backgroundColor: "rgba(255,255,255,0.85)",
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 12,
+  bannerTitle: { fontSize: 20, fontWeight: "bold", color: "#fff", textAlign: "center" },
+  bannerDesc: { fontSize: 13, color: "rgba(255,255,255,0.9)", textAlign: "center", marginTop: 4 },
+  bannerButton: {
+    backgroundColor: "rgba(255,255,255,0.25)", paddingHorizontal: 16, paddingVertical: 6,
+    borderRadius: 20, marginTop: 10,
   },
-  bannerDetailsBtnText: { fontSize: 11, fontWeight: "600", color: "#2563EB" },
+  bannerButtonText: { color: "#fff", fontSize: 13, fontWeight: "600" },
   dotsContainer: { flexDirection: "row", justifyContent: "center", marginTop: 10, gap: 6 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "#D1D5DB" },
-  dotActive: { backgroundColor: "#2563EB", width: 20 },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.4)" },
+  dotActive: { backgroundColor: "#fff", width: 20 },
   section: { marginTop: 20, paddingHorizontal: 16 },
   sectionTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937", marginBottom: 12, textAlign: "right" },
   categoryChip: {
     paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1.5, borderColor: "#2563EB", backgroundColor: "#fff",
+    borderWidth: 1.5, borderColor: "#4169E1", backgroundColor: "#fff",
   },
-  categoryChipActive: { backgroundColor: "#2563EB" },
-  categoryChipText: { fontSize: 14, fontWeight: "600", color: "#2563EB" },
+  categoryChipActive: { backgroundColor: "#4169E1" },
+  categoryChipText: { fontSize: 14, fontWeight: "600", color: "#4169E1" },
   categoryChipTextActive: { color: "#fff" },
   medicineCard: {
     flexDirection: "row", backgroundColor: "#fff", borderRadius: 12,
@@ -319,7 +309,7 @@ const styles = StyleSheet.create({
   medicineInfo: { flex: 1, marginHorizontal: 12, justifyContent: "center" },
   medicineName: { fontSize: 16, fontWeight: "bold", color: "#1F2937", textAlign: "right" },
   medicineNameEn: { fontSize: 12, color: "#6B7280", marginTop: 2, textAlign: "right" },
-  medicinePrice: { fontSize: 16, fontWeight: "bold", color: "#2563EB", marginTop: 6, textAlign: "right" },
+  medicinePrice: { fontSize: 16, fontWeight: "bold", color: "#4169E1", marginTop: 6, textAlign: "right" },
   medicineActions: { justifyContent: "center", alignItems: "center" },
   actionBtn: { padding: 8 },
   emptyState: { alignItems: "center", paddingVertical: 40 },
