@@ -302,12 +302,16 @@ export async function verifyAdmin(username: string, password: string) {
   // Check database first (in case password was changed)
   const db = await getDb();
   if (db) {
-    const result = await db.select().from(adminCredentials).where(
-      and(eq(adminCredentials.username, username), eq(adminCredentials.password, password))
+    // Check if admin exists in database at all
+    const adminExists = await db.select().from(adminCredentials).where(
+      eq(adminCredentials.username, username)
     ).limit(1);
-    if (result.length > 0) return true;
+    if (adminExists.length > 0) {
+      // Admin exists in DB - ONLY verify against DB password (ignore env vars)
+      return adminExists[0].password === password;
+    }
   }
-  // Fallback to env vars
+  // No admin in DB yet - fallback to env vars for initial setup
   const envUser = process.env.ADMIN_USERNAME;
   const envPass = process.env.ADMIN_PASSWORD;
   if (envUser && envPass) {
