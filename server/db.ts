@@ -299,17 +299,21 @@ export async function updateOrderStatus(id: number, status: "received" | "prepar
 
 // ===== ADMIN FUNCTIONS =====
 export async function verifyAdmin(username: string, password: string) {
+  // Check database first (in case password was changed)
+  const db = await getDb();
+  if (db) {
+    const result = await db.select().from(adminCredentials).where(
+      and(eq(adminCredentials.username, username), eq(adminCredentials.password, password))
+    ).limit(1);
+    if (result.length > 0) return true;
+  }
+  // Fallback to env vars
   const envUser = process.env.ADMIN_USERNAME;
   const envPass = process.env.ADMIN_PASSWORD;
   if (envUser && envPass) {
     return username === envUser && password === envPass;
   }
-  const db = await getDb();
-  if (!db) return false;
-  const result = await db.select().from(adminCredentials).where(
-    and(eq(adminCredentials.username, username), eq(adminCredentials.password, password))
-  ).limit(1);
-  return result.length > 0;
+  return false;
 }
 
 export async function createAdminIfNotExists(username: string, password: string) {
@@ -415,14 +419,37 @@ export async function isLoyaltyEnabled(): Promise<boolean> {
 
 // ===== CHANGE ADMIN PASSWORD =====
 export async function changeAdminPassword(username: string, currentPassword: string, newPassword: string): Promise<boolean> {
+  // First verify the current password using the same logic as verifyAdmin
+  const envUser = process.env.ADMIN_USERNAME;
+  const envPass = process.env.ADMIN_PASSWORD;
+  
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  // Verify current password first
-  const existing = await db.select().from(adminCredentials).where(
-    and(eq(adminCredentials.username, username), eq(adminCredentials.password, currentPassword))
-  ).limit(1);
-  if (existing.length === 0) return false;
-  // Update password
-  await db.update(adminCredentials).set({ password: newPassword }).where(eq(adminCredentials.username, username));
+  
+  let isVerified = false;
+  
+  // Check against env vars first
+  if (envUser && envPass) {
+    isVerified = (username === envUser && currentPassword === envPass);
+  }
+  
+  // Also check against database
+  if (!isVerified) {
+    const existing = await db.select().from(adminCredentials).where(
+      and(eq(adminCredentials.username, username), eq(adminCredentials.password, currentPassword))
+    ).limit(1);
+    isVerified = existing.length > 0;
+  }
+  
+  if (!isVerified) return false;
+  
+  // Update or create the admin credentials in the database with new password
+  const existingAdmin = await db.select().from(adminCredentials).where(eq(adminCredentials.username, username)).limit(1);
+  if (existingAdmin.length > 0) {
+    await db.update(adminCredentials).set({ password: newPassword }).where(eq(adminCredentials.username, username));
+  } else {
+    // Admin was using env vars only, create DB entry with new password
+    await db.insert(adminCredentials).values({ username, password: newPassword });
+  }
   return true;
 }
