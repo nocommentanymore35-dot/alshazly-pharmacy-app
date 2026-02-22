@@ -825,8 +825,14 @@ function CustomersManagement() {
 function SettingsManagement() {
   const settingsQuery = trpc.settings.get.useQuery(undefined, { refetchInterval: 5000 });
   const toggleLoyaltyMutation = trpc.settings.toggleLoyalty.useMutation();
+  const changePasswordMutation = trpc.admin.changePassword.useMutation();
   const settings = settingsQuery.data;
   const loyaltyEnabled = settings?.loyaltyProgramEnabled !== false;
+
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const handleToggleLoyalty = async () => {
     try {
@@ -838,9 +844,41 @@ function SettingsManagement() {
     }
   };
 
+  const handleChangePassword = async () => {
+    if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
+      Alert.alert("خطأ", "يرجى ملء جميع الحقول");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert("خطأ", "كلمة المرور الجديدة غير متطابقة");
+      return;
+    }
+    if (newPassword.length < 6) {
+      Alert.alert("خطأ", "كلمة المرور يجب أن تكون 6 أحرف على الأقل");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await changePasswordMutation.mutateAsync({
+        username: 'admin',
+        currentPassword: currentPassword.trim(),
+        newPassword: newPassword.trim(),
+      });
+      Alert.alert("تم", "تم تغيير كلمة المرور بنجاح");
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (e: any) {
+      Alert.alert("خطأ", "كلمة المرور الحالية غير صحيحة");
+    }
+    setChangingPassword(false);
+  };
+
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={styles.adminSectionTitle}>إعدادات التطبيق</Text>
+
+      {/* Loyalty Program Toggle */}
       <View style={styles.adminCard}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
           <View style={{ flex: 1 }}>
@@ -859,6 +897,53 @@ function SettingsManagement() {
           </Pressable>
         </View>
       </View>
+
+      {/* Change Password */}
+      <View style={[styles.adminCard, { marginTop: 12 }]}>
+        <Text style={styles.adminCardTitle}>تغيير كلمة المرور</Text>
+        <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4, marginBottom: 12, textAlign: 'right' }}>
+          قم بتغيير كلمة مرور لوحة الإدارة
+        </Text>
+        <TextInput
+          style={styles.formInput}
+          placeholder="كلمة المرور الحالية"
+          placeholderTextColor="#9CA3AF"
+          value={currentPassword}
+          onChangeText={setCurrentPassword}
+          secureTextEntry
+        />
+        <TextInput
+          style={styles.formInput}
+          placeholder="كلمة المرور الجديدة"
+          placeholderTextColor="#9CA3AF"
+          value={newPassword}
+          onChangeText={setNewPassword}
+          secureTextEntry
+        />
+        <TextInput
+          style={styles.formInput}
+          placeholder="تأكيد كلمة المرور الجديدة"
+          placeholderTextColor="#9CA3AF"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+        />
+        <Pressable
+          onPress={handleChangePassword}
+          disabled={changingPassword}
+          style={({ pressed }) => [{
+            backgroundColor: '#2563EB', borderRadius: 8, paddingVertical: 12,
+            alignItems: 'center', marginTop: 4, opacity: changingPassword ? 0.6 : 1,
+          }, pressed && { opacity: 0.8 }]}
+        >
+          {changingPassword ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>تغيير كلمة المرور</Text>
+          )}
+        </Pressable>
+      </View>
+
       <View style={{ height: 100 }} />
     </ScrollView>
   );

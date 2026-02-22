@@ -412,3 +412,17 @@ export async function isLoyaltyEnabled(): Promise<boolean> {
   const value = await getSetting("loyalty_enabled");
   return value !== "false"; // Default is enabled
 }
+
+// ===== CHANGE ADMIN PASSWORD =====
+export async function changeAdminPassword(username: string, currentPassword: string, newPassword: string): Promise<boolean> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  // Verify current password first
+  const existing = await db.select().from(adminCredentials).where(
+    and(eq(adminCredentials.username, username), eq(adminCredentials.password, currentPassword))
+  ).limit(1);
+  if (existing.length === 0) return false;
+  // Update password
+  await db.update(adminCredentials).set({ password: newPassword }).where(eq(adminCredentials.username, username));
+  return true;
+}

@@ -19,6 +19,11 @@ function buildUserResponse(
   };
 }
 
+// Export authenticateRequest for context.ts
+export async function authenticateRequest(req: Request) {
+  return sdk.authenticateRequest(req);
+}
+
 export function registerOAuthRoutes(app: Express) {
   // Simple login endpoint (replaces Manus OAuth)
   app.post("/api/auth/login", async (req: Request, res: Response) => {

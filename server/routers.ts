@@ -199,6 +199,13 @@ export const appRouter = router({
     setup: publicProcedure
       .input(z.object({ username: z.string(), password: z.string() }))
       .mutation(({ input }) => db.createAdminIfNotExists(input.username, input.password)),
+    changePassword: publicProcedure
+      .input(z.object({ username: z.string(), currentPassword: z.string(), newPassword: z.string() }))
+      .mutation(async ({ input }) => {
+        const success = await db.changeAdminPassword(input.username, input.currentPassword, input.newPassword);
+        if (!success) throw new Error("كلمة المرور الحالية غير صحيحة");
+        return { success: true };
+      }),
   }),
 
   // Reports
