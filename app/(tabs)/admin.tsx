@@ -823,25 +823,12 @@ function CustomersManagement() {
 
 // ===== Settings Management =====
 function SettingsManagement() {
-  const loyaltyQuery = trpc.settings.isLoyaltyEnabled.useQuery(undefined, { refetchInterval: 5000 });
-  const toggleLoyaltyMutation = trpc.settings.toggleLoyalty.useMutation();
   const changePasswordMutation = trpc.admin.changePassword.useMutation();
-  const loyaltyEnabled = loyaltyQuery.data !== false;
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
-
-  const handleToggleLoyalty = async () => {
-    try {
-      await toggleLoyaltyMutation.mutateAsync({ enabled: !loyaltyEnabled });
-      loyaltyQuery.refetch();
-      Alert.alert("تم", loyaltyEnabled ? "تم تعطيل برنامج الولاء" : "تم تفعيل برنامج الولاء");
-    } catch (e) {
-      Alert.alert("خطأ", "فشل التحديث");
-    }
-  };
 
   const handleChangePassword = async () => {
     if (!currentPassword.trim() || !newPassword.trim() || !confirmPassword.trim()) {
@@ -876,26 +863,6 @@ function SettingsManagement() {
   return (
     <ScrollView showsVerticalScrollIndicator={false}>
       <Text style={styles.adminSectionTitle}>إعدادات التطبيق</Text>
-
-      {/* Loyalty Program Toggle */}
-      <View style={styles.adminCard}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.adminCardTitle}>برنامج الولاء</Text>
-            <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
-              {loyaltyEnabled ? 'برنامج الولاء مفعّل حالياً' : 'برنامج الولاء معطّل حالياً'}
-            </Text>
-          </View>
-          <Pressable
-            onPress={handleToggleLoyalty}
-            style={{ backgroundColor: loyaltyEnabled ? '#EF4444' : '#10B981', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}
-          >
-            <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
-              {loyaltyEnabled ? 'تعطيل' : 'تفعيل'}
-            </Text>
-          </Pressable>
-        </View>
-      </View>
 
       {/* Change Password */}
       <View style={[styles.adminCard, { marginTop: 12 }]}>
