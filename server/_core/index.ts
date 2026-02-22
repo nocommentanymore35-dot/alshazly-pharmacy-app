@@ -2,10 +2,14 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import path from "path";
+import fs from "fs";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { getDb } from "../db";
+import { createAdminIfNotExists } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -54,6 +58,13 @@ async function startServer() {
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
+  // Serve uploaded files
+  const uploadsDir = path.join(process.cwd(), "uploads");
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use("/uploads", express.static(uploadsDir));
+
   registerOAuthRoutes(app);
 
   app.get("/api/health", (_req, res) => {
@@ -75,7 +86,22 @@ async function startServer() {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, () => {
+  // Initialize database and create default admin
+  try {
+    const db = await getDb();
+    if (db) {
+      console.log("[Database] Connected successfully");
+      // Create default admin if not exists
+      const adminUser = process.env.ADMIN_USERNAME || "admin";
+      const adminPass = process.env.ADMIN_PASSWORD || "admin123";
+      await createAdminIfNotExists(adminUser, adminPass);
+      console.log(`[Admin] Default admin ready (username: ${adminUser})`);
+    }
+  } catch (e) {
+    console.warn("[Database] Init warning:", e);
+  }
+
+  server.listen(port, "0.0.0.0", () => {
     console.log(`[api] server listening on port ${port}`);
   });
 }

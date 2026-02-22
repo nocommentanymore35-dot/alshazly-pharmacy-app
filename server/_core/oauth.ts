@@ -1,174 +1,185 @@
-import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
 import type { Express, Request, Response } from "express";
-import { getUserByOpenId, upsertUser } from "../db";
-import { getSessionCookieOptions } from "./cookies";
-import { sdk } from "./sdk";
+import { SignJWT, jwtVerify } from "jose";
+import { ENV } from "./env";
+import { getUserByOpenId, upsertUser, verifyAdmin } from "../db";
 
-function getQueryParam(req: Request, key: string): string | undefined {
-  const value = req.query[key];
-  return typeof value === "string" ? value : undefined;
+const COOKIE_NAME = "app_session";
+const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
+
+function getSessionCookieOptions(req: Request) {
+  return {
+    httpOnly: true,
+    secure: req.secure || req.headers["x-forwarded-proto"] === "https",
+    sameSite: "lax" as const,
+    path: "/",
+  };
 }
 
-async function syncUser(userInfo: {
-  openId?: string | null;
-  name?: string | null;
-  email?: string | null;
-  loginMethod?: string | null;
-  platform?: string | null;
-}) {
-  if (!userInfo.openId) {
-    throw new Error("openId missing from user info");
+function getSessionSecret() {
+  return new TextEncoder().encode(ENV.cookieSecret);
+}
+
+async function createSessionToken(openId: string, name: string): Promise<string> {
+  const issuedAt = Date.now();
+  const expirationSeconds = Math.floor((issuedAt + ONE_YEAR_MS) / 1000);
+  const secretKey = getSessionSecret();
+  return new SignJWT({
+    openId,
+    appId: ENV.appId,
+    name,
+  })
+    .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+    .setExpirationTime(expirationSeconds)
+    .sign(secretKey);
+}
+
+async function verifySession(
+  cookieValue: string | undefined | null,
+): Promise<{ openId: string; appId: string; name: string } | null> {
+  if (!cookieValue) return null;
+  try {
+    const secretKey = getSessionSecret();
+    const { payload } = await jwtVerify(cookieValue, secretKey, {
+      algorithms: ["HS256"],
+    });
+    const { openId, appId, name } = payload as Record<string, unknown>;
+    if (typeof openId !== "string" || !openId) return null;
+    return {
+      openId: openId as string,
+      appId: (appId as string) || ENV.appId,
+      name: (name as string) || "",
+    };
+  } catch (error) {
+    console.warn("[Auth] Session verification failed", String(error));
+    return null;
+  }
+}
+
+export async function authenticateRequest(req: Request) {
+  const authHeader = req.headers.authorization || req.headers.Authorization;
+  let token: string | undefined;
+  if (typeof authHeader === "string" && authHeader.startsWith("Bearer ")) {
+    token = authHeader.slice("Bearer ".length).trim();
+  }
+  const cookieHeader = req.headers.cookie;
+  let sessionCookie = token;
+  if (!sessionCookie && cookieHeader) {
+    const cookies = cookieHeader.split(";").reduce((acc, c) => {
+      const [key, ...val] = c.trim().split("=");
+      acc[key] = val.join("=");
+      return acc;
+    }, {} as Record<string, string>);
+    sessionCookie = cookies[COOKIE_NAME];
   }
 
-  const lastSignedIn = new Date();
-  await upsertUser({
-    openId: userInfo.openId,
-    name: userInfo.name || null,
-    email: userInfo.email ?? null,
-    loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-    lastSignedIn,
-  });
-  const saved = await getUserByOpenId(userInfo.openId);
-  return (
-    saved ?? {
-      openId: userInfo.openId,
-      name: userInfo.name,
-      email: userInfo.email,
-      loginMethod: userInfo.loginMethod ?? null,
-      lastSignedIn,
-    }
-  );
+  const session = await verifySession(sessionCookie);
+  if (!session) {
+    throw new Error("Not authenticated");
+  }
+
+  let user = await getUserByOpenId(session.openId);
+  if (!user) {
+    await upsertUser({
+      openId: session.openId,
+      name: session.name || null,
+      lastSignedIn: new Date(),
+    });
+    user = await getUserByOpenId(session.openId);
+  }
+  if (!user) {
+    throw new Error("User not found");
+  }
+  return user;
 }
 
-function buildUserResponse(
-  user:
-    | Awaited<ReturnType<typeof getUserByOpenId>>
-    | {
-        openId: string;
-        name?: string | null;
-        email?: string | null;
-        loginMethod?: string | null;
-        lastSignedIn?: Date | null;
-      },
-) {
+function buildUserResponse(user: any) {
   return {
-    id: (user as any)?.id ?? null,
+    id: user?.id ?? null,
     openId: user?.openId ?? null,
     name: user?.name ?? null,
     email: user?.email ?? null,
     loginMethod: user?.loginMethod ?? null,
+    role: user?.role ?? "user",
     lastSignedIn: (user?.lastSignedIn ?? new Date()).toISOString(),
   };
 }
 
 export function registerOAuthRoutes(app: Express) {
-  app.get("/api/oauth/callback", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
-
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
-      return;
-    }
-
+  // Admin login endpoint
+  app.post("/api/admin/login", async (req: Request, res: Response) => {
     try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      await syncUser(userInfo);
-      const sessionToken = await sdk.createSessionToken(userInfo.openId!, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
+      const { username, password } = req.body;
+      if (!username || !password) {
+        res.status(400).json({ error: "Username and password are required" });
+        return;
+      }
+      const isValid = await verifyAdmin(username, password);
+      if (!isValid) {
+        res.status(401).json({ error: "Invalid credentials" });
+        return;
+      }
+      const openId = `admin_${username}`;
+      await upsertUser({
+        openId,
+        name: username,
+        role: "admin",
+        lastSignedIn: new Date(),
       });
-
+      const sessionToken = await createSessionToken(openId, username);
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      // Redirect to the frontend URL (Expo web on port 8081)
-      // Cookie is set with parent domain so it works across both 3000 and 8081 subdomains
-      const frontendUrl =
-        process.env.EXPO_WEB_PREVIEW_URL ||
-        process.env.EXPO_PACKAGER_PROXY_URL ||
-        "http://localhost:8081";
-      res.redirect(302, frontendUrl);
-    } catch (error) {
-      console.error("[OAuth] Callback failed", error);
-      res.status(500).json({ error: "OAuth callback failed" });
-    }
-  });
-
-  app.get("/api/oauth/mobile", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
-
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
-      return;
-    }
-
-    try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      const user = await syncUser(userInfo);
-
-      const sessionToken = await sdk.createSessionToken(userInfo.openId!, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
+      const user = await getUserByOpenId(openId);
       res.json({
-        app_session_id: sessionToken,
+        success: true,
+        token: sessionToken,
         user: buildUserResponse(user),
       });
     } catch (error) {
-      console.error("[OAuth] Mobile exchange failed", error);
-      res.status(500).json({ error: "OAuth mobile exchange failed" });
+      console.error("[Auth] Admin login failed:", error);
+      res.status(500).json({ error: "Login failed" });
     }
   });
 
+  // Logout
   app.post("/api/auth/logout", (req: Request, res: Response) => {
     const cookieOptions = getSessionCookieOptions(req);
     res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
     res.json({ success: true });
   });
 
-  // Get current authenticated user - works with both cookie (web) and Bearer token (mobile)
+  // Get current authenticated user
   app.get("/api/auth/me", async (req: Request, res: Response) => {
     try {
-      const user = await sdk.authenticateRequest(req);
+      const user = await authenticateRequest(req);
       res.json({ user: buildUserResponse(user) });
     } catch (error) {
-      console.error("[Auth] /api/auth/me failed:", error);
       res.status(401).json({ error: "Not authenticated", user: null });
     }
   });
 
-  // Establish session cookie from Bearer token
-  // Used by iframe preview: frontend receives token via postMessage, then calls this endpoint
-  // to get a proper Set-Cookie response from the backend (3000-xxx domain)
+  // Establish session from Bearer token
   app.post("/api/auth/session", async (req: Request, res: Response) => {
     try {
-      // Authenticate using Bearer token from Authorization header
-      const user = await sdk.authenticateRequest(req);
-
-      // Get the token from the Authorization header to set as cookie
+      const user = await authenticateRequest(req);
       const authHeader = req.headers.authorization || req.headers.Authorization;
       if (typeof authHeader !== "string" || !authHeader.startsWith("Bearer ")) {
         res.status(400).json({ error: "Bearer token required" });
         return;
       }
       const token = authHeader.slice("Bearer ".length).trim();
-
-      // Set cookie for this domain (3000-xxx)
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
       res.json({ success: true, user: buildUserResponse(user) });
     } catch (error) {
-      console.error("[Auth] /api/auth/session failed:", error);
       res.status(401).json({ error: "Invalid token" });
     }
+  });
+
+  // Keep OAuth routes for compatibility - redirect to home
+  app.get("/api/oauth/callback", (_req: Request, res: Response) => {
+    res.redirect("/");
+  });
+  app.get("/api/oauth/mobile", (_req: Request, res: Response) => {
+    res.json({ error: "Use /api/admin/login instead" });
   });
 }
