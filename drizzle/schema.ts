@@ -51,13 +51,15 @@ export const banners = mysqlTable("banners", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
-// Customers table (no password needed)
+// Customers table (with approval status and active flag)
 export const customers = mysqlTable("customers", {
   id: int("id").autoincrement().primaryKey(),
   deviceId: varchar("deviceId", { length: 255 }).notNull().unique(),
   fullName: varchar("fullName", { length: 255 }),
   phone: varchar("phone", { length: 20 }),
   address: text("address"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -94,6 +96,23 @@ export const adminCredentials = mysqlTable("admin_credentials", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+// Search logs table (for rate limiting)
+export const searchLogs = mysqlTable("search_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId"),
+  deviceId: varchar("deviceId", { length: 255 }),
+  query: varchar("query", { length: 500 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+// App settings table (for loyalty program toggle, etc.)
+export const appSettings = mysqlTable("app_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  settingKey: varchar("settingKey", { length: 100 }).notNull().unique(),
+  settingValue: varchar("settingValue", { length: 500 }).notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
@@ -111,3 +130,7 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export type InsertOrderItem = typeof orderItems.$inferInsert;
 export type AdminCredential = typeof adminCredentials.$inferSelect;
 export type InsertAdminCredential = typeof adminCredentials.$inferInsert;
+export type SearchLog = typeof searchLogs.$inferSelect;
+export type InsertSearchLog = typeof searchLogs.$inferInsert;
+export type AppSetting = typeof appSettings.$inferSelect;
+export type InsertAppSetting = typeof appSettings.$inferInsert;

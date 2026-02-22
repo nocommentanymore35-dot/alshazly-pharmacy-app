@@ -78,7 +78,7 @@ export default function ProfileScreen() {
           address: address.trim(),
         });
       }
-      Alert.alert("تم الحفظ", "تم حفظ بياناتك بنجاح");
+      Alert.alert("تم الحفظ", "تم حفظ بياناتك بنجاح\n\nسوف يتم قبول طلبك في غضون ٣ دقائق");
     } catch (e) {
       Alert.alert("خطأ", "حدث خطأ أثناء الحفظ");
     }

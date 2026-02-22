@@ -410,16 +410,9 @@ export default function VoiceSearchModal({
         reader.readAsDataURL(blob);
       });
 
-      // Upload audio to server storage
-      const uploadResult = await uploadMutation.mutateAsync({
-        base64,
-        fileName: `voice-search-${Date.now()}.m4a`,
-        contentType: "audio/m4a",
-      });
-
-      // Transcribe the audio
+      // Transcribe the audio directly from base64 (faster, no upload needed)
       const transcribeResult = await transcribeMutation.mutateAsync({
-        audioUrl: uploadResult.url,
+        audioBase64: base64,
       });
 
       if (transcribeResult.text && transcribeResult.text.trim().length > 0) {

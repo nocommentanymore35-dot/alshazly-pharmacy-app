@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   Text, View, TextInput, ScrollView, Alert, ActivityIndicator,
-  FlatList, StyleSheet, Platform,
+  FlatList, StyleSheet, Platform, Linking,
 } from "react-native";
 import { Image } from "expo-image";
 import { ScreenContainer } from "@/components/screen-container";
@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
-type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports";
+type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "settings";
 
 const STATUS_OPTIONS = [
   { key: "received", label: "تم الاستقبال" },
@@ -105,8 +105,13 @@ export default function AdminScreen() {
             </Pressable>
 
             <Text style={styles.contactText}>
-              للحصول على بيانات الدخول، يرجى التواصل مع إدارة الصيدلية
+              إذا واجهت أي صعوبة في استخدام التطبيق تواصل معنا عبر واتساب
             </Text>
+            <Pressable onPress={() => Linking.openURL('https://wa.me/2001095071082')} style={{ marginTop: 10 }}>
+              <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#25D366', justifyContent: 'center', alignItems: 'center' }}>
+                <MaterialIcons name="chat" size={24} color="#fff" />
+              </View>
+            </Pressable>
           </View>
         </View>
       </ScreenContainer>
@@ -134,6 +139,8 @@ export default function AdminScreen() {
             { key: "categories", label: "الفئات", icon: "category" },
             { key: "banners", label: "الإعلانات", icon: "campaign" },
             { key: "reports", label: "التقارير", icon: "bar-chart" },
+            { key: "customers", label: "العملاء", icon: "people" },
+            { key: "settings", label: "الإعدادات", icon: "settings" },
           ].map((tab) => (
             <Pressable
               key={tab.key}
@@ -156,6 +163,8 @@ export default function AdminScreen() {
           {activeTab === "categories" && <CategoriesManagement />}
           {activeTab === "banners" && <BannersManagement />}
           {activeTab === "reports" && <ReportsView />}
+          {activeTab === "customers" && <CustomersManagement />}
+          {activeTab === "settings" && <SettingsManagement />}
         </View>
       </View>
     </ScreenContainer>
@@ -718,6 +727,143 @@ function ReportsView() {
   );
 }
 
+// ===== Customers Management =====
+function CustomersManagement() {
+  const customersQuery = trpc.customers.listAll.useQuery(undefined, { refetchInterval: 10000 });
+  const approveCustomerMutation = trpc.customers.approve.useMutation();
+  const toggleCustomerMutation = trpc.customers.toggleActive.useMutation();
+  const deleteCustomerMutation = trpc.customers.delete.useMutation();
+  const customers = customersQuery.data ?? [];
+
+  const handleApprove = async (id: number) => {
+    try {
+      await approveCustomerMutation.mutateAsync({ id });
+      customersQuery.refetch();
+      Alert.alert("تم", "تم الموافقة على العميل");
+    } catch (e) {
+      Alert.alert("خطأ", "فشل الموافقة");
+    }
+  };
+
+  const handleToggleActive = async (id: number, currentActive: boolean) => {
+    try {
+      await toggleCustomerMutation.mutateAsync({ id, isActive: !currentActive });
+      customersQuery.refetch();
+      Alert.alert("تم", currentActive ? "تم تعطيل العميل" : "تم تفعيل العميل");
+    } catch (e) {
+      Alert.alert("خطأ", "فشل التحديث");
+    }
+  };
+
+  const handleDelete = (id: number, name: string) => {
+    Alert.alert("حذف العميل", `هل أنت متأكد من حذف ${name}؟`, [
+      { text: "إلغاء", style: "cancel" },
+      {
+        text: "حذف", style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteCustomerMutation.mutateAsync({ id });
+            customersQuery.refetch();
+            Alert.alert("تم", "تم حذف العميل");
+          } catch (e) {
+            Alert.alert("خطأ", "فشل الحذف");
+          }
+        },
+      },
+    ]);
+  };
+
+  if (customersQuery.isLoading) return <ActivityIndicator size="large" color="#2563EB" style={{ marginTop: 40 }} />;
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.adminSectionTitle}>العملاء ({customers.length})</Text>
+      {customers.length === 0 ? (
+        <View style={styles.adminEmpty}>
+          <MaterialIcons name="people" size={48} color="#D1D5DB" />
+          <Text style={styles.adminEmptyText}>لا يوجد عملاء مسجلين</Text>
+        </View>
+      ) : (
+        customers.map((c: any) => (
+          <View key={c.id} style={[styles.adminCard, !c.isActive && { opacity: 0.6 }]}>
+            <View style={styles.adminCardHeader}>
+              <Text style={styles.adminCardTitle}>{c.fullName || 'بدون اسم'}</Text>
+              <View style={{ flexDirection: 'row', gap: 4 }}>
+                <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 8, backgroundColor: c.status === 'approved' ? '#D1FAE5' : c.status === 'rejected' ? '#FEE2E2' : '#FEF3C7' }}>
+                  <Text style={{ fontSize: 10, color: c.status === 'approved' ? '#065F46' : c.status === 'rejected' ? '#991B1B' : '#92400E' }}>
+                    {c.status === 'approved' ? 'موافق' : c.status === 'rejected' ? 'مرفوض' : 'معلّق'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.adminCardBody}>
+              <Text style={styles.adminCardInfo}>الهاتف: {c.phone || '-'}</Text>
+              <Text style={styles.adminCardInfo}>العنوان: {c.address || '-'}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {c.status === 'pending' && (
+                <Pressable onPress={() => handleApprove(c.id)} style={{ backgroundColor: '#10B981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
+                  <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>موافقة</Text>
+                </Pressable>
+              )}
+              <Pressable onPress={() => handleToggleActive(c.id, c.isActive !== false)} style={{ backgroundColor: c.isActive !== false ? '#F59E0B' : '#10B981', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>{c.isActive !== false ? 'تعطيل' : 'تفعيل'}</Text>
+              </Pressable>
+              <Pressable onPress={() => handleDelete(c.id, c.fullName || 'العميل')} style={{ backgroundColor: '#EF4444', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>حذف</Text>
+              </Pressable>
+            </View>
+          </View>
+        ))
+      )}
+      <View style={{ height: 100 }} />
+    </ScrollView>
+  );
+}
+
+// ===== Settings Management =====
+function SettingsManagement() {
+  const settingsQuery = trpc.settings.get.useQuery(undefined, { refetchInterval: 5000 });
+  const toggleLoyaltyMutation = trpc.settings.toggleLoyalty.useMutation();
+  const settings = settingsQuery.data;
+  const loyaltyEnabled = settings?.loyaltyProgramEnabled !== false;
+
+  const handleToggleLoyalty = async () => {
+    try {
+      await toggleLoyaltyMutation.mutateAsync({ enabled: !loyaltyEnabled });
+      settingsQuery.refetch();
+      Alert.alert("تم", loyaltyEnabled ? "تم تعطيل برنامج الولاء" : "تم تفعيل برنامج الولاء");
+    } catch (e) {
+      Alert.alert("خطأ", "فشل التحديث");
+    }
+  };
+
+  return (
+    <ScrollView showsVerticalScrollIndicator={false}>
+      <Text style={styles.adminSectionTitle}>إعدادات التطبيق</Text>
+      <View style={styles.adminCard}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.adminCardTitle}>برنامج الولاء</Text>
+            <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4 }}>
+              {loyaltyEnabled ? 'برنامج الولاء مفعّل حالياً' : 'برنامج الولاء معطّل حالياً'}
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleToggleLoyalty}
+            style={{ backgroundColor: loyaltyEnabled ? '#EF4444' : '#10B981', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 8 }}
+          >
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+              {loyaltyEnabled ? 'تعطيل' : 'تفعيل'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+      <View style={{ height: 100 }} />
+    </ScrollView>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F9FAFB" },
   header: {
@@ -746,7 +892,7 @@ const styles = StyleSheet.create({
     width: "100%", alignItems: "center", marginTop: 8,
   },
   loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-  contactText: { fontSize: 15, color: "#6B7280", marginTop: 20, textAlign: "center" },
+  contactText: { fontSize: 12, color: "#9CA3AF", marginTop: 20, textAlign: "center" },
   // Tabs - Compact
   tabsBarCompact: { backgroundColor: "#fff", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: "#E5E7EB" },
   tabItemCompact: {

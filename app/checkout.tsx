@@ -134,7 +134,7 @@ export default function CheckoutScreen() {
 
           {/* Payment Method */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>طريقة الدفع</Text>
+            <Text style={styles.paymentMethodTitle}>إختار طريقة الدفع</Text>
 
             <Pressable
               onPress={() => setPaymentMethod("cash")}
@@ -254,6 +254,7 @@ const styles = StyleSheet.create({
   body: { flex: 1 },
   section: { padding: 16 },
   sectionTitle: { fontSize: 17, fontWeight: "bold", color: "#1F2937", marginBottom: 12, textAlign: "right" },
+  paymentMethodTitle: { fontSize: 22, fontWeight: "bold", color: "#DC2626", marginBottom: 12, textAlign: "center" },
   infoCard: {
     backgroundColor: "#fff", borderRadius: 12, padding: 16,
     borderWidth: 1, borderColor: "#E5E7EB",

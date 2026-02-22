@@ -7,6 +7,9 @@ import { notifyOwner } from "./_core/notification";
 import { storagePut } from "./storage";
 import * as db from "./db";
 
+// Daily search limit per device
+const DAILY_SEARCH_LIMIT = 50;
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -41,8 +44,25 @@ export const appRouter = router({
       .input(z.object({ categoryId: z.number() }))
       .query(({ input }) => db.getMedicinesByCategory(input.categoryId)),
     search: publicProcedure
-      .input(z.object({ query: z.string() }))
-      .query(({ input }) => db.searchMedicines(input.query)),
+      .input(z.object({ query: z.string(), deviceId: z.string().optional() }))
+      .query(async ({ input }) => {
+        // Rate limiting: log search and check daily limit
+        if (input.deviceId) {
+          const searchCount = await db.getSearchCountToday(input.deviceId);
+          if (searchCount >= DAILY_SEARCH_LIMIT) {
+            // Notify admin about excessive searching
+            try {
+              await notifyOwner({
+                title: "تنبيه: عمليات بحث مفرطة",
+                content: `الجهاز ${input.deviceId} تجاوز حد البحث اليومي (${DAILY_SEARCH_LIMIT} عملية). عدد عمليات البحث اليوم: ${searchCount + 1}`,
+              });
+            } catch (e) { console.warn("Failed to notify about rate limit:", e); }
+            // Still allow search but log the warning
+          }
+          await db.logSearch(input.deviceId, input.query);
+        }
+        return db.searchMedicines(input.query);
+      }),
     byId: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(({ input }) => db.getMedicineById(input.id)),
@@ -91,10 +111,41 @@ export const appRouter = router({
       .mutation(({ input }) => db.getOrCreateCustomer(input.deviceId)),
     update: publicProcedure
       .input(z.object({ deviceId: z.string(), fullName: z.string().optional(), phone: z.string().optional(), address: z.string().optional() }))
-      .mutation(({ input }) => { const { deviceId, ...data } = input; return db.updateCustomer(deviceId, data); }),
+      .mutation(async ({ input }) => {
+        const { deviceId, ...data } = input;
+        await db.updateCustomer(deviceId, data);
+        // Notify admin about new customer profile submission
+        if (data.fullName && data.phone) {
+          try {
+            await notifyOwner({
+              title: "عميل جديد بانتظار الموافقة",
+              content: `عميل جديد أضاف بياناته:\nالاسم: ${data.fullName}\nالهاتف: ${data.phone}\nالعنوان: ${data.address || "غير محدد"}\n\nيرجى الموافقة عليه من لوحة الإدارة.`,
+            });
+          } catch (e) { console.warn("Failed to notify about new customer:", e); }
+        }
+        return { success: true };
+      }),
     get: publicProcedure
       .input(z.object({ deviceId: z.string() }))
       .query(({ input }) => db.getCustomerByDeviceId(input.deviceId)),
+    // Admin: list all customers
+    listAll: publicProcedure.query(() => db.getAllCustomers()),
+    // Admin: approve customer
+    approve: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.approveCustomer(input.id)),
+    // Admin: reject customer
+    reject: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.rejectCustomer(input.id)),
+    // Admin: toggle active status
+    toggleActive: publicProcedure
+      .input(z.object({ id: z.number(), isActive: z.boolean() }))
+      .mutation(({ input }) => db.toggleCustomerActive(input.id, input.isActive)),
+    // Admin: delete customer
+    delete: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(({ input }) => db.deleteCustomer(input.id)),
   }),
 
   // Orders
@@ -117,7 +168,6 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { items, ...orderData } = input;
         const orderId = await db.createOrder(orderData as any, items.map(i => ({ ...i, orderId: 0 })));
-        // Notify admin about new order
         try {
           await notifyOwner({
             title: "طلب جديد #" + orderId,
@@ -155,23 +205,53 @@ export const appRouter = router({
   reports: router({
     sales: publicProcedure.query(() => db.getSalesReport()),
     reset: publicProcedure.mutation(() => db.resetSalesReport()),
+    // Top searchers today
+    topSearchers: publicProcedure.query(() => db.getTopSearchersToday()),
   }),
 
-  // Voice Search (Speech-to-Text)
+  // App Settings
+  settings: router({
+    get: publicProcedure
+      .input(z.object({ key: z.string() }))
+      .query(({ input }) => db.getSetting(input.key)),
+    set: publicProcedure
+      .input(z.object({ key: z.string(), value: z.string() }))
+      .mutation(({ input }) => db.setSetting(input.key, input.value)),
+    // Loyalty program toggle
+    isLoyaltyEnabled: publicProcedure.query(() => db.isLoyaltyEnabled()),
+    toggleLoyalty: publicProcedure
+      .input(z.object({ enabled: z.boolean() }))
+      .mutation(({ input }) => db.setSetting("loyalty_enabled", input.enabled ? "true" : "false")),
+  }),
+
+  // Voice Search (Speech-to-Text) - supports both URL and base64
   voice: router({
     transcribe: publicProcedure
-      .input(z.object({ audioUrl: z.string() }))
+      .input(z.object({ audioUrl: z.string().optional(), audioBase64: z.string().optional() }))
       .mutation(async ({ input }) => {
-        const { transcribeAudio } = await import("./_core/voiceTranscription");
-        const result = await transcribeAudio({
-          audioUrl: input.audioUrl,
-          language: "ar",
-          prompt: "بحث عن أدوية صيدلية",
-        });
-        if ("error" in result) {
-          return { text: "", error: (result as any).error };
+        if (input.audioBase64) {
+          const { transcribeAudioFromBase64 } = await import("./_core/voiceTranscription");
+          const result = await transcribeAudioFromBase64(input.audioBase64, {
+            language: "ar",
+            prompt: "بحث عن أدوية صيدلية",
+          });
+          if ("error" in result) {
+            return { text: "", error: (result as any).error };
+          }
+          return { text: (result as any).text };
+        } else if (input.audioUrl) {
+          const { transcribeAudio } = await import("./_core/voiceTranscription");
+          const result = await transcribeAudio({
+            audioUrl: input.audioUrl,
+            language: "ar",
+            prompt: "بحث عن أدوية صيدلية",
+          });
+          if ("error" in result) {
+            return { text: "", error: (result as any).error };
+          }
+          return { text: (result as any).text };
         }
-        return { text: (result as any).text };
+        return { text: "", error: "No audio data provided" };
       }),
   }),
 

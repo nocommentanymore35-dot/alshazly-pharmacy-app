@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, like, or } from "drizzle-orm";
+import { eq, desc, sql, and, like, or, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
@@ -9,6 +9,8 @@ import {
   orders, InsertOrder,
   orderItems, InsertOrderItem,
   adminCredentials, InsertAdminCredential,
+  searchLogs, InsertSearchLog,
+  appSettings, InsertAppSetting,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -127,13 +129,11 @@ function normalizeArabic(text: string): string {
 export async function searchMedicines(query: string) {
   const db = await getDb();
   if (!db) return [];
-  // Get all active medicines and filter in JS for Arabic normalization
   const allMeds = await db.select().from(medicines).where(eq(medicines.isActive, true));
   const normalizedQuery = normalizeArabic(query.toLowerCase().trim());
   return allMeds.filter(med => {
     const nameAr = normalizeArabic((med.nameAr || '').toLowerCase());
     const nameEn = (med.nameEn || '').toLowerCase();
-    // Match: starts with OR contains
     return nameAr.startsWith(normalizedQuery) || nameAr.includes(normalizedQuery)
       || nameEn.startsWith(normalizedQuery) || nameEn.includes(normalizedQuery);
   });
@@ -211,7 +211,12 @@ export async function getOrCreateCustomer(deviceId: string) {
 export async function updateCustomer(deviceId: string, data: { fullName?: string; phone?: string; address?: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  await db.update(customers).set(data).where(eq(customers.deviceId, deviceId));
+  // When customer updates their profile with real data, set status to pending for admin approval
+  const updateData: any = { ...data };
+  if (data.fullName && data.phone) {
+    updateData.status = "pending";
+  }
+  await db.update(customers).set(updateData).where(eq(customers.deviceId, deviceId));
 }
 
 export async function getCustomerByDeviceId(deviceId: string) {
@@ -219,6 +224,41 @@ export async function getCustomerByDeviceId(deviceId: string) {
   if (!db) return undefined;
   const result = await db.select().from(customers).where(eq(customers.deviceId, deviceId)).limit(1);
   return result.length > 0 ? result[0] : undefined;
+}
+
+// Get all customers for admin
+export async function getAllCustomers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(customers).orderBy(desc(customers.createdAt));
+}
+
+// Approve customer
+export async function approveCustomer(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(customers).set({ status: "approved" }).where(eq(customers.id, id));
+}
+
+// Reject customer
+export async function rejectCustomer(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(customers).set({ status: "rejected" }).where(eq(customers.id, id));
+}
+
+// Toggle customer active status
+export async function toggleCustomerActive(id: number, isActive: boolean) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(customers).set({ isActive }).where(eq(customers.id, id));
+}
+
+// Delete customer
+export async function deleteCustomer(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(customers).where(eq(customers.id, id));
 }
 
 // ===== ORDER FUNCTIONS =====
@@ -259,13 +299,11 @@ export async function updateOrderStatus(id: number, status: "received" | "prepar
 
 // ===== ADMIN FUNCTIONS =====
 export async function verifyAdmin(username: string, password: string) {
-  // Check env vars first
   const envUser = process.env.ADMIN_USERNAME;
   const envPass = process.env.ADMIN_PASSWORD;
   if (envUser && envPass) {
     return username === envUser && password === envPass;
   }
-  // Fallback to database
   const db = await getDb();
   if (!db) return false;
   const result = await db.select().from(adminCredentials).where(
@@ -286,7 +324,6 @@ export async function createAdminIfNotExists(username: string, password: string)
 export async function deleteOrder(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  // Delete order items first, then the order
   await db.delete(orderItems).where(eq(orderItems.orderId, id));
   await db.delete(orders).where(eq(orders.id, id));
 }
@@ -294,7 +331,6 @@ export async function deleteOrder(id: number) {
 export async function resetSalesReport() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  // Delete all order items and orders to reset reports
   await db.delete(orderItems);
   await db.delete(orders);
 }
@@ -315,4 +351,64 @@ export async function getSalesReport() {
     totalRevenue: totalRevenue[0]?.total ?? "0",
     ordersByStatus,
   };
+}
+
+// ===== SEARCH LOG FUNCTIONS (Rate Limiting) =====
+export async function logSearch(deviceId: string, query: string, customerId?: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(searchLogs).values({ deviceId, query, customerId: customerId ?? null });
+}
+
+export async function getSearchCountToday(deviceId: string): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const result = await db.select({ count: sql<number>`COUNT(*)` })
+    .from(searchLogs)
+    .where(and(
+      eq(searchLogs.deviceId, deviceId),
+      gte(searchLogs.createdAt, todayStart)
+    ));
+  return result[0]?.count ?? 0;
+}
+
+// Get top searchers today (for admin alerts)
+export async function getTopSearchersToday(limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+  const result = await db.select({
+    deviceId: searchLogs.deviceId,
+    count: sql<number>`COUNT(*)`,
+  })
+    .from(searchLogs)
+    .where(gte(searchLogs.createdAt, todayStart))
+    .groupBy(searchLogs.deviceId)
+    .orderBy(desc(sql`COUNT(*)`))
+    .limit(limit);
+  return result;
+}
+
+// ===== APP SETTINGS FUNCTIONS =====
+export async function getSetting(key: string): Promise<string | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(appSettings).where(eq(appSettings.settingKey, key)).limit(1);
+  return result.length > 0 ? result[0].settingValue : null;
+}
+
+export async function setSetting(key: string, value: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(appSettings).values({ settingKey: key, settingValue: value })
+    .onDuplicateKeyUpdate({ set: { settingValue: value } });
+}
+
+// Check if loyalty program is enabled
+export async function isLoyaltyEnabled(): Promise<boolean> {
+  const value = await getSetting("loyalty_enabled");
+  return value !== "false"; // Default is enabled
 }
