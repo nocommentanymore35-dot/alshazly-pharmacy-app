@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Text, View, FlatList, StyleSheet, Platform, Share, TouchableOpacity, Alert, Linking, Modal } from "react-native";
+import { Text, View, FlatList, StyleSheet, Platform, Share, TouchableOpacity, Alert, Linking, Modal, ActivityIndicator } from "react-native";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAppStore, LoyaltyTransaction } from "@/lib/store";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { trpc } from "@/lib/trpc";
 
 // 1 point per 1 EGP spent
 
@@ -14,6 +15,44 @@ export default function LoyaltyScreen() {
   const { showNewYearResetBanner, resetBannerPreviousPoints } = state;
   const [expandedArchiveYear, setExpandedArchiveYear] = useState<number | null>(null);
   const [showDeveloperModal, setShowDeveloperModal] = useState(false);
+
+  // Check if loyalty program is enabled
+  const loyaltyQuery = trpc.settings.isLoyaltyEnabled.useQuery(undefined, { refetchInterval: 10000 });
+  const isLoyaltyEnabled = loyaltyQuery.data;
+
+  // Show loading while checking
+  if (loyaltyQuery.isLoading) {
+    return (
+      <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#F8FAFC]">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#2563EB" />
+        </View>
+      </ScreenContainer>
+    );
+  }
+
+  // Show disabled message if loyalty is turned off
+  if (isLoyaltyEnabled === false) {
+    return (
+      <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#F8FAFC]">
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 }}>
+          <MaterialIcons name="card-giftcard" size={80} color="#D1D5DB" />
+          <Text style={{ fontSize: 22, fontWeight: 'bold', color: '#374151', marginTop: 24, textAlign: 'center' }}>
+            \u0628\u0631\u0646\u0627\u0645\u062c \u0627\u0644\u0648\u0644\u0627\u0621 \u0645\u062a\u0648\u0642\u0641 \u0645\u0624\u0642\u062a\u0627\u064b
+          </Text>
+          <Text style={{ fontSize: 15, color: '#6B7280', marginTop: 12, textAlign: 'center', lineHeight: 24 }}>
+            \u0628\u0631\u0646\u0627\u0645\u062c \u0627\u0644\u0648\u0644\u0627\u0621 \u0648\u0627\u0644\u0646\u0642\u0627\u0637 \u0645\u062a\u0648\u0642\u0641 \u062d\u0627\u0644\u064a\u0627\u064b. \u0633\u064a\u062a\u0645 \u0625\u0639\u0627\u062f\u0629 \u062a\u0641\u0639\u064a\u0644\u0647 \u0642\u0631\u064a\u0628\u0627\u064b \u0625\u0646 \u0634\u0627\u0621 \u0627\u0644\u0644\u0647.\n\n\u0646\u0642\u0627\u0637\u0643 \u0627\u0644\u062d\u0627\u0644\u064a\u0629 \u0645\u062d\u0641\u0648\u0638\u0629 \u0648\u0644\u0646 \u062a\u0636\u064a\u0639.
+          </Text>
+          <View style={{ backgroundColor: '#EFF6FF', borderRadius: 12, padding: 16, marginTop: 24, flexDirection: 'row', alignItems: 'center' }}>
+            <MaterialIcons name="info-outline" size={20} color="#2563EB" />
+            <Text style={{ fontSize: 13, color: '#2563EB', marginRight: 8, flex: 1, textAlign: 'right' }}>
+              \u0646\u0642\u0627\u0637\u0643 \u0627\u0644\u062d\u0627\u0644\u064a\u0629: {totalPoints} \u0646\u0642\u0637\u0629
+            </Text>
+          </View>
+        </View>
+      </ScreenContainer>
+    );
+  }
 
   const currentYear = new Date().getFullYear();
   const yearTransactions = transactions.filter(t => {

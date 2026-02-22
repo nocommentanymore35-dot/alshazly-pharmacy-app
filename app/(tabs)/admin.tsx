@@ -823,11 +823,10 @@ function CustomersManagement() {
 
 // ===== Settings Management =====
 function SettingsManagement() {
-  const settingsQuery = trpc.settings.get.useQuery(undefined, { refetchInterval: 5000 });
+  const loyaltyQuery = trpc.settings.isLoyaltyEnabled.useQuery(undefined, { refetchInterval: 5000 });
   const toggleLoyaltyMutation = trpc.settings.toggleLoyalty.useMutation();
   const changePasswordMutation = trpc.admin.changePassword.useMutation();
-  const settings = settingsQuery.data;
-  const loyaltyEnabled = settings?.loyaltyProgramEnabled !== false;
+  const loyaltyEnabled = loyaltyQuery.data !== false;
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -837,7 +836,7 @@ function SettingsManagement() {
   const handleToggleLoyalty = async () => {
     try {
       await toggleLoyaltyMutation.mutateAsync({ enabled: !loyaltyEnabled });
-      settingsQuery.refetch();
+      loyaltyQuery.refetch();
       Alert.alert("تم", loyaltyEnabled ? "تم تعطيل برنامج الولاء" : "تم تفعيل برنامج الولاء");
     } catch (e) {
       Alert.alert("خطأ", "فشل التحديث");
