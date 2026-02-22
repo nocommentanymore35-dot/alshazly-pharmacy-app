@@ -7,13 +7,16 @@ const bundleId = "space.manus.alshazly.pharmacy.app.t20260219092901";
 const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
 const schemeFromBundleId = `manus${timestamp}`;
 
+// Production API URL - hardcoded to ensure it works in all build environments
+const PRODUCTION_API_URL = "https://alshazly-pharmacy-app-production.up.railway.app";
+
 const env = {
   portal: process.env.EXPO_PUBLIC_OAUTH_PORTAL_URL ?? "",
-  server: process.env.EXPO_PUBLIC_OAUTH_SERVER_URL ?? "",
-  appId: process.env.EXPO_PUBLIC_APP_ID ?? "",
+  server: process.env.EXPO_PUBLIC_OAUTH_SERVER_URL ?? PRODUCTION_API_URL,
+  appId: process.env.EXPO_PUBLIC_APP_ID ?? "alshazly-pharmacy",
   ownerId: process.env.EXPO_PUBLIC_OWNER_OPEN_ID ?? "",
-  ownerName: process.env.EXPO_PUBLIC_OWNER_NAME ?? "",
-  apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "",
+  ownerName: process.env.EXPO_PUBLIC_OWNER_NAME ?? "صيدلية الشاذلي",
+  apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? PRODUCTION_API_URL,
   deepLinkScheme: schemeFromBundleId,
 };
 
