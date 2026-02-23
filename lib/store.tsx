@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
-import * as Notifications from "expo-notifications";
+// expo-notifications is imported dynamically where needed to avoid crash
 
 // Types
 export type UnitType = "strip" | "box";
@@ -215,6 +215,7 @@ function generateDeviceId(): string {
 // Send local notification when loyalty points are reset
 async function sendYearResetNotification(newYear: number, previousPoints: number) {
   try {
+    const Notifications = await import("expo-notifications");
     if (Platform.OS === "android") {
       await Notifications.setNotificationChannelAsync("loyalty", {
         name: "برنامج الولاء",
@@ -229,7 +230,7 @@ async function sendYearResetNotification(newYear: number, previousPoints: number
     }
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: `عام جديد سعيد ${newYear}! 🎉`,
+        title: `عام جديد سعيد ${newYear}!`,
         body: `تم أرشفة ${previousPoints} نقطة من العام السابق وبدأ موسم جديد لبرنامج الولاء. ابدأ بجمع النقاط الآن!`,
         data: { type: "loyalty_reset", year: newYear },
       },
