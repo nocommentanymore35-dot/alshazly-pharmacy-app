@@ -13,6 +13,16 @@ function normalizeKey(relKey: string): string {
   return relKey.replace(/^\/+/, "").replace(/\.\./g, "");
 }
 
+// Get the base URL for uploaded files
+function getBaseUrl(): string {
+  // Use RAILWAY_PUBLIC_DOMAIN or fallback to hardcoded production URL
+  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
+  }
+  // Fallback to the known production URL
+  return process.env.API_BASE_URL || "https://alshazly-pharmacy-app-production.up.railway.app";
+}
+
 export async function storagePut(
   relKey: string,
   data: Buffer | Uint8Array | string,
@@ -31,15 +41,17 @@ export async function storagePut(
   const buffer = typeof data === "string" ? Buffer.from(data) : Buffer.from(data);
   fs.writeFileSync(filePath, buffer);
 
-  // Return URL that will be served by express static
-  const url = `/uploads/${key}`;
+  // Return full URL that will be served by express static
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}/uploads/${key}`;
   return { key, url };
 }
 
 export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {
   const key = normalizeKey(relKey);
+  const baseUrl = getBaseUrl();
   return {
     key,
-    url: `/uploads/${key}`,
+    url: `${baseUrl}/uploads/${key}`,
   };
 }

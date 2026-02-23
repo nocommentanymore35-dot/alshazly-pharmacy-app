@@ -87,6 +87,13 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     [
+      "expo-image-picker",
+      {
+        photosPermission: "يحتاج التطبيق إلى الوصول إلى الصور لرفع صور الأدوية والإعلانات.",
+        cameraPermission: "يحتاج التطبيق إلى الوصول إلى الكاميرا لالتقاط صور الأدوية والإعلانات."
+      }
+    ],
+    [
       "expo-audio",
       {
         microphonePermission: "يحتاج التطبيق إلى الوصول إلى الميكروفون لاستخدام البحث الصوتي.",

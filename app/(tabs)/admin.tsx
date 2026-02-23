@@ -9,6 +9,7 @@ import { useAppStore } from "@/lib/store";
 import { trpc } from "@/lib/trpc";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import ImagePickerButton from "@/components/ImagePickerButton";
 
 type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "settings";
 
@@ -391,8 +392,15 @@ function MedicinesManagement() {
           </ScrollView>
 
           <TextInput style={styles.formInput} placeholder="المخزون *" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
-          <TextInput style={styles.formInput} placeholder="رابط صورة الصنف (URL)" value={imageUrl} onChangeText={setImageUrl} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
-          {imageUrl.trim() ? (
+          {/* Image Upload Section */}
+          <ImagePickerButton
+            currentImageUrl={imageUrl}
+            onImageUploaded={(url) => setImageUrl(url)}
+            label="صورة الصنف"
+          />
+          <Text style={{ fontSize: 11, color: '#9CA3AF', textAlign: 'center', marginBottom: 8 }}>أو أدخل رابط صورة خارجي:</Text>
+          <TextInput style={styles.formInput} placeholder="رابط صورة الصنف (URL) - اختياري" value={imageUrl} onChangeText={setImageUrl} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
+          {imageUrl.trim() && !imageUrl.startsWith('http') ? null : imageUrl.trim() ? (
             <View style={{ alignItems: "center", marginBottom: 10 }}>
               <Image source={{ uri: imageUrl.trim() }} style={{ width: 100, height: 100, borderRadius: 8 }} contentFit="cover" />
               <Text style={{ fontSize: 11, color: "#22C55E", marginTop: 4 }}>معاينة الصورة</Text>
@@ -607,7 +615,14 @@ function BannersManagement() {
           <Text style={styles.formCardTitle}>{editId ? "تعديل إعلان" : "إضافة إعلان جديد"}</Text>
           <TextInput style={styles.formInput} placeholder="عنوان الإعلان (اختياري)" value={title} onChangeText={setTitle} placeholderTextColor="#9CA3AF" />
           <TextInput style={[styles.formInput, { height: 70 }]} placeholder="وصف الإعلان (اختياري)" value={description} onChangeText={setDescription} multiline placeholderTextColor="#9CA3AF" />
-          <TextInput style={styles.formInput} placeholder="رابط صورة الإعلان (URL) *" value={imageUrl} onChangeText={setImageUrl} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
+          {/* Image Upload Section */}
+          <ImagePickerButton
+            currentImageUrl={imageUrl}
+            onImageUploaded={(url) => setImageUrl(url)}
+            label="صورة الإعلان"
+          />
+          <Text style={{ fontSize: 11, color: '#9CA3AF', textAlign: 'center', marginBottom: 8 }}>أو أدخل رابط صورة خارجي:</Text>
+          <TextInput style={styles.formInput} placeholder="رابط صورة الإعلان (URL) - اختياري" value={imageUrl} onChangeText={setImageUrl} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
           {imageUrl.trim() ? (
             <View style={{ alignItems: "center", marginBottom: 10 }}>
               <Image source={{ uri: imageUrl.trim() }} style={{ width: "100%", height: 120, borderRadius: 8 }} contentFit="cover" />
