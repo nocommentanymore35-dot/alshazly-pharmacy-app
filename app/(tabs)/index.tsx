@@ -26,7 +26,7 @@ export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [currentBanner, setCurrentBanner] = useState(0);
-  const bannerRef = useRef<FlatList>(null);
+  // bannerRef removed - using bannerScrollRef instead
 
   // Voice Search Modal State
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
@@ -62,23 +62,21 @@ export default function HomeScreen() {
   }, []);
 
   // Auto-scroll banners every 7 seconds
+  const bannerScrollRef = useRef<ScrollView>(null);
   const currentBannerRef = useRef(0);
   useEffect(() => {
     if (banners.length <= 1) return;
     currentBannerRef.current = 0;
     setCurrentBanner(0);
+    const itemWidth = BANNER_WIDTH + 12;
     const interval = setInterval(() => {
       const next = (currentBannerRef.current + 1) % banners.length;
       currentBannerRef.current = next;
       setCurrentBanner(next);
-      try {
-        bannerRef.current?.scrollToOffset({
-          offset: next * (BANNER_WIDTH + 12),
-          animated: true,
-        });
-      } catch (e) {
-        // ignore scroll errors
-      }
+      bannerScrollRef.current?.scrollTo({
+        x: next * itemWidth,
+        animated: true,
+      });
     }, BANNER_INTERVAL);
     return () => clearInterval(interval);
   }, [banners.length]);
@@ -93,31 +91,7 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, []);
 
-  const renderBanner = ({ item }: { item: any }) => (
-    <Pressable
-      onPress={() => router.push(`/banner/${item.id}` as any)}
-      style={({ pressed }) => [styles.bannerItem, pressed && { opacity: 0.9 }]}
-    >
-      {item.imageUrl ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.bannerImage} contentFit="cover" />
-      ) : (
-        <View style={[styles.bannerImage, { backgroundColor: "#2563EB", justifyContent: "center", alignItems: "center" }]}>
-          <MaterialIcons name="local-pharmacy" size={48} color="#fff" />
-        </View>
-      )}
-      {/* Text overlay at bottom-right if exists */}
-      {(item.title || item.description) ? (
-        <View style={styles.bannerTextOverlay}>
-          {item.title ? <Text style={styles.bannerTitle} numberOfLines={1}>{item.title}</Text> : null}
-          {item.description ? <Text style={styles.bannerDesc} numberOfLines={1}>{item.description}</Text> : null}
-        </View>
-      ) : null}
-      {/* Details button - small, bottom-left */}
-      <View style={styles.bannerDetailsBtn}>
-        <Text style={styles.bannerDetailsBtnText}>تفاصيل</Text>
-      </View>
-    </Pressable>
-  );
+  // Banner rendering is now inline inside ScrollView
 
   const renderMedicine = ({ item }: { item: any }) => (
     <Pressable
@@ -205,29 +179,48 @@ export default function HomeScreen() {
         {/* Banners - OUTSIDE blue header, on white background */}
         {banners.length > 0 && (
           <View style={styles.bannerSection}>
-            <FlatList
-              ref={bannerRef}
-              data={banners}
-              renderItem={renderBanner}
-              keyExtractor={(item: any) => item.id.toString()}
+            <ScrollView
+              ref={bannerScrollRef}
               horizontal
               showsHorizontalScrollIndicator={false}
               snapToInterval={BANNER_WIDTH + 12}
               snapToAlignment="start"
               decelerationRate="fast"
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-              ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+              contentContainerStyle={{ paddingLeft: 16, paddingRight: 4 }}
               onMomentumScrollEnd={(e) => {
                 const index = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + 12));
-                currentBannerRef.current = index;
-                setCurrentBanner(index);
+                const clampedIndex = Math.max(0, Math.min(index, banners.length - 1));
+                currentBannerRef.current = clampedIndex;
+                setCurrentBanner(clampedIndex);
               }}
-              getItemLayout={(_, index) => ({
-                length: BANNER_WIDTH + 12,
-                offset: (BANNER_WIDTH + 12) * index,
-                index,
-              })}
-            />
+            >
+              {banners.map((item: any, index: number) => (
+                <View key={item.id} style={{ flexDirection: 'row' }}>
+                  <Pressable
+                    onPress={() => router.push(`/banner/${item.id}` as any)}
+                    style={({ pressed }) => [styles.bannerItem, pressed && { opacity: 0.9 }]}
+                  >
+                    {item.imageUrl ? (
+                      <Image source={{ uri: item.imageUrl }} style={styles.bannerImage} contentFit="cover" />
+                    ) : (
+                      <View style={[styles.bannerImage, { backgroundColor: "#2563EB", justifyContent: "center", alignItems: "center" }]}>
+                        <MaterialIcons name="local-pharmacy" size={48} color="#fff" />
+                      </View>
+                    )}
+                    {(item.title || item.description) ? (
+                      <View style={styles.bannerTextOverlay}>
+                        {item.title ? <Text style={styles.bannerTitle} numberOfLines={1}>{item.title}</Text> : null}
+                        {item.description ? <Text style={styles.bannerDesc} numberOfLines={1}>{item.description}</Text> : null}
+                      </View>
+                    ) : null}
+                    <View style={styles.bannerDetailsBtn}>
+                      <Text style={styles.bannerDetailsBtnText}>تفاصيل</Text>
+                    </View>
+                  </Pressable>
+                  {index < banners.length - 1 && <View style={{ width: 12 }} />}
+                </View>
+              ))}
+            </ScrollView>
             {/* Pagination dots */}
             <View style={styles.dotsContainer}>
               {banners.map((_, i) => (
