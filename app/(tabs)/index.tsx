@@ -62,14 +62,23 @@ export default function HomeScreen() {
   }, []);
 
   // Auto-scroll banners every 7 seconds
+  const currentBannerRef = useRef(0);
   useEffect(() => {
     if (banners.length <= 1) return;
+    currentBannerRef.current = 0;
+    setCurrentBanner(0);
     const interval = setInterval(() => {
-      setCurrentBanner(prev => {
-        const next = (prev + 1) % banners.length;
-        bannerRef.current?.scrollToIndex({ index: next, animated: true });
-        return next;
-      });
+      const next = (currentBannerRef.current + 1) % banners.length;
+      currentBannerRef.current = next;
+      setCurrentBanner(next);
+      try {
+        bannerRef.current?.scrollToOffset({
+          offset: next * (BANNER_WIDTH + 12),
+          animated: true,
+        });
+      } catch (e) {
+        // ignore scroll errors
+      }
     }, BANNER_INTERVAL);
     return () => clearInterval(interval);
   }, [banners.length]);
@@ -200,15 +209,17 @@ export default function HomeScreen() {
               ref={bannerRef}
               data={banners}
               renderItem={renderBanner}
+              keyExtractor={(item: any) => item.id.toString()}
               horizontal
-              pagingEnabled
               showsHorizontalScrollIndicator={false}
               snapToInterval={BANNER_WIDTH + 12}
+              snapToAlignment="start"
               decelerationRate="fast"
               contentContainerStyle={{ paddingHorizontal: 16 }}
               ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
               onMomentumScrollEnd={(e) => {
                 const index = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + 12));
+                currentBannerRef.current = index;
                 setCurrentBanner(index);
               }}
               getItemLayout={(_, index) => ({
