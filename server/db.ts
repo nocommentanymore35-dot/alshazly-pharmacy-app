@@ -11,6 +11,7 @@ import {
   adminCredentials, InsertAdminCredential,
   searchLogs, InsertSearchLog,
   appSettings, InsertAppSetting,
+  pushTokens, InsertPushToken,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -456,4 +457,32 @@ export async function changeAdminPassword(username: string, currentPassword: str
     await db.insert(adminCredentials).values({ username, password: newPassword });
   }
   return true;
+}
+
+// ===== PUSH TOKEN FUNCTIONS =====
+export async function registerPushToken(token: string, deviceId?: string, customerId?: number, isAdmin: boolean = false) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.insert(pushTokens).values({ token, deviceId: deviceId ?? null, customerId: customerId ?? null, isAdmin })
+    .onDuplicateKeyUpdate({ set: { deviceId: deviceId ?? null, customerId: customerId ?? null, isAdmin, updatedAt: new Date() } });
+}
+
+export async function getAdminPushTokens(): Promise<string[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const results = await db.select({ token: pushTokens.token }).from(pushTokens).where(eq(pushTokens.isAdmin, true));
+  return results.map(r => r.token);
+}
+
+export async function getCustomerPushTokens(customerId: number): Promise<string[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const results = await db.select({ token: pushTokens.token }).from(pushTokens).where(eq(pushTokens.customerId, customerId));
+  return results.map(r => r.token);
+}
+
+export async function removePushToken(token: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(pushTokens).where(eq(pushTokens.token, token));
 }

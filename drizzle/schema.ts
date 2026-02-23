@@ -105,6 +105,17 @@ export const searchLogs = mysqlTable("search_logs", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
+// Push Tokens table (for push notifications)
+export const pushTokens = mysqlTable("push_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  token: varchar("token", { length: 255 }).notNull().unique(),
+  deviceId: varchar("deviceId", { length: 255 }),
+  customerId: int("customerId"),
+  isAdmin: boolean("isAdmin").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
 // App settings table (for loyalty program toggle, etc.)
 export const appSettings = mysqlTable("app_settings", {
   id: int("id").autoincrement().primaryKey(),
@@ -134,3 +145,5 @@ export type SearchLog = typeof searchLogs.$inferSelect;
 export type InsertSearchLog = typeof searchLogs.$inferInsert;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = typeof appSettings.$inferInsert;
+export type PushToken = typeof pushTokens.$inferSelect;
+export type InsertPushToken = typeof pushTokens.$inferInsert;

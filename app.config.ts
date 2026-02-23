@@ -87,6 +87,14 @@ const config: ExpoConfig = {
   plugins: [
     "expo-router",
     [
+      "expo-notifications",
+      {
+        icon: "./assets/images/icon.png",
+        color: "#2196F3",
+        sounds: [],
+      }
+    ],
+    [
       "expo-image-picker",
       {
         photosPermission: "يحتاج التطبيق إلى الوصول إلى الصور لرفع صور الأدوية والإعلانات.",

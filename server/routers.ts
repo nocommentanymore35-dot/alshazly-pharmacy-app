@@ -5,6 +5,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { notifyOwner } from "./_core/notification";
 import { storagePut } from "./storage";
+import { notifyAdminNewOrder, notifyCustomerOrderStatus, notifyAdminNewCustomer } from "./pushNotifications";
 import * as db from "./db";
 
 // Daily search limit per device
@@ -122,6 +123,11 @@ export const appRouter = router({
               content: `عميل جديد أضاف بياناته:\nالاسم: ${data.fullName}\nالهاتف: ${data.phone}\nالعنوان: ${data.address || "غير محدد"}\n\nيرجى الموافقة عليه من لوحة الإدارة.`,
             });
           } catch (e) { console.warn("Failed to notify about new customer:", e); }
+          // Send push notification to admin
+          try {
+            const adminTokens = await db.getAdminPushTokens();
+            await notifyAdminNewCustomer(adminTokens, data.fullName, data.phone);
+          } catch (e) { console.warn("Failed to send push to admin:", e); }
         }
         return { success: true };
       }),
@@ -174,6 +180,11 @@ export const appRouter = router({
             content: `طلب جديد من ${input.customerName}\nالهاتف: ${input.customerPhone}\nالعنوان: ${input.customerAddress}\nالمبلغ: ${input.totalAmount} ج.م\nطريقة الدفع: ${input.paymentMethod === "cash" ? "الدفع عند الاستلام" : "فودافون كاش"}`,
           });
         } catch (e) { console.warn("Failed to notify owner:", e); }
+        // Send push notification to admin
+        try {
+          const adminTokens = await db.getAdminPushTokens();
+          await notifyAdminNewOrder(adminTokens, orderId, input.customerName, input.totalAmount, input.paymentMethod);
+        } catch (e) { console.warn("Failed to send push to admin:", e); }
         return orderId;
       }),
     byCustomer: publicProcedure
@@ -184,8 +195,18 @@ export const appRouter = router({
       .query(({ input }) => db.getOrderItems(input.orderId)),
     listAll: publicProcedure.query(() => db.getAllOrders()),
     updateStatus: publicProcedure
-      .input(z.object({ id: z.number(), status: z.enum(["received", "preparing", "shipped", "delivered"]) }))
-      .mutation(({ input }) => db.updateOrderStatus(input.id, input.status)),
+      .input(z.object({ id: z.number(), status: z.enum(["received", "preparing", "shipped", "delivered"]), customerId: z.number().optional() }))
+      .mutation(async ({ input }) => {
+        await db.updateOrderStatus(input.id, input.status);
+        // Send push notification to customer about status change
+        if (input.customerId) {
+          try {
+            const customerTokens = await db.getCustomerPushTokens(input.customerId);
+            await notifyCustomerOrderStatus(customerTokens, input.id, input.status);
+          } catch (e) { console.warn("Failed to send push to customer:", e); }
+        }
+        return { success: true };
+      }),
     delete: publicProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => db.deleteOrder(input.id)),
@@ -260,6 +281,16 @@ export const appRouter = router({
         }
         return { text: "", error: "No audio data provided" };
       }),
+  }),
+
+  // Push Notifications
+  pushTokens: router({
+    register: publicProcedure
+      .input(z.object({ token: z.string(), deviceId: z.string().optional(), customerId: z.number().optional(), isAdmin: z.boolean().optional() }))
+      .mutation(({ input }) => db.registerPushToken(input.token, input.deviceId, input.customerId, input.isAdmin ?? false)),
+    remove: publicProcedure
+      .input(z.object({ token: z.string() }))
+      .mutation(({ input }) => db.removePushToken(input.token)),
   }),
 
   // File Upload
