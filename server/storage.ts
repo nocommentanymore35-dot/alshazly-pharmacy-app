@@ -1,26 +1,20 @@
-// Local file storage for standalone deployment
-import fs from "fs";
-import path from "path";
+// Cloudinary storage for persistent image hosting
+import { v2 as cloudinary } from "cloudinary";
 
-const UPLOAD_DIR = path.join(process.cwd(), "uploads");
-
-// Ensure upload directory exists
-if (!fs.existsSync(UPLOAD_DIR)) {
-  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || "djambipwp",
+  api_key: process.env.CLOUDINARY_API_KEY || "777756389123773",
+  api_secret: process.env.CLOUDINARY_API_SECRET || "j0RKVCY6Nyh1KqlYagLbf2FxK_M",
+});
 
 function normalizeKey(relKey: string): string {
-  return relKey.replace(/^\/+/, "").replace(/\.\./g, "");
-}
-
-// Get the base URL for uploaded files
-function getBaseUrl(): string {
-  // Use RAILWAY_PUBLIC_DOMAIN or fallback to hardcoded production URL
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
-    return `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
-  }
-  // Fallback to the known production URL
-  return process.env.API_BASE_URL || "https://alshazly-pharmacy-app-production.up.railway.app";
+  // Remove leading slashes, file extension, and sanitize
+  return relKey
+    .replace(/^\/+/, "")
+    .replace(/\.\./g, "")
+    .replace(/\.[^/.]+$/, "") // Remove file extension for Cloudinary public_id
+    .replace(/[^a-zA-Z0-9_\-\/]/g, "_"); // Sanitize special characters
 }
 
 export async function storagePut(
@@ -28,30 +22,72 @@ export async function storagePut(
   data: Buffer | Uint8Array | string,
   contentType = "application/octet-stream",
 ): Promise<{ key: string; url: string }> {
-  const key = normalizeKey(relKey);
-  const filePath = path.join(UPLOAD_DIR, key);
-  const dirPath = path.dirname(filePath);
+  const publicId = normalizeKey(relKey);
 
-  // Create subdirectories if needed
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
+  // Convert data to base64 data URI for Cloudinary upload
+  const buffer =
+    typeof data === "string" ? Buffer.from(data) : Buffer.from(data);
+  const base64Data = buffer.toString("base64");
+
+  // Determine the mime type
+  let mimeType = contentType;
+  if (
+    mimeType === "application/octet-stream" &&
+    relKey.match(/\.(jpg|jpeg)$/i)
+  ) {
+    mimeType = "image/jpeg";
+  } else if (
+    mimeType === "application/octet-stream" &&
+    relKey.match(/\.png$/i)
+  ) {
+    mimeType = "image/png";
+  } else if (
+    mimeType === "application/octet-stream" &&
+    relKey.match(/\.webp$/i)
+  ) {
+    mimeType = "image/webp";
+  } else if (
+    mimeType === "application/octet-stream" &&
+    relKey.match(/\.gif$/i)
+  ) {
+    mimeType = "image/gif";
   }
 
-  // Write file
-  const buffer = typeof data === "string" ? Buffer.from(data) : Buffer.from(data);
-  fs.writeFileSync(filePath, buffer);
+  const dataUri = `data:${mimeType};base64,${base64Data}`;
 
-  // Return full URL that will be served by express static
-  const baseUrl = getBaseUrl();
-  const url = `${baseUrl}/uploads/${key}`;
-  return { key, url };
+  try {
+    // Upload to Cloudinary
+    const result = await cloudinary.uploader.upload(dataUri, {
+      public_id: publicId,
+      folder: "alshazly-pharmacy",
+      overwrite: true,
+      resource_type: "image",
+    });
+
+    console.log(`[Cloudinary] Uploaded: ${result.secure_url}`);
+    return { key: publicId, url: result.secure_url };
+  } catch (error) {
+    console.error("[Cloudinary] Upload error:", error);
+    throw new Error(`Failed to upload image to Cloudinary: ${error}`);
+  }
 }
 
-export async function storageGet(relKey: string): Promise<{ key: string; url: string }> {
-  const key = normalizeKey(relKey);
-  const baseUrl = getBaseUrl();
-  return {
-    key,
-    url: `${baseUrl}/uploads/${key}`,
-  };
+export async function storageGet(
+  relKey: string,
+): Promise<{ key: string; url: string }> {
+  const publicId = normalizeKey(relKey);
+
+  try {
+    // Generate the Cloudinary URL
+    const url = cloudinary.url(`alshazly-pharmacy/${publicId}`, {
+      secure: true,
+      fetch_format: "auto",
+      quality: "auto",
+    });
+
+    return { key: publicId, url };
+  } catch (error) {
+    console.error("[Cloudinary] Get URL error:", error);
+    return { key: publicId, url: "" };
+  }
 }
