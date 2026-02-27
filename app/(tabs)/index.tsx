@@ -49,11 +49,12 @@ export default function HomeScreen() {
   const searchResults = searchMedicinesQuery.data ?? [];
   const categoryMedicines = categoryMedicinesQuery.data ?? [];
 
-  const displayMedicines = searchQuery.length > 0
+  const displayMedicines = (searchQuery.length > 0
     ? searchResults
     : selectedCategory !== null
       ? categoryMedicines
-      : allMedicines;
+      : allMedicines
+  ).slice().sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '', 'ar'));
 
   // Handle voice search result
   const handleVoiceResult = useCallback((text: string) => {
