@@ -20,7 +20,6 @@ import Animated, {
   Easing,
   cancelAnimation,
 } from "react-native-reanimated";
-import { trpc } from "@/lib/trpc";
 
 // ─── Types ───────────────────────────────────────────────────────────
 type VoiceSearchState =
@@ -154,10 +153,10 @@ export default function VoiceSearchModal({
   const [resultText, setResultText] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const recorderRef = useRef<any>(null);
-  const webRecognitionRef = useRef<any>(null);
   const stateRef = useRef<VoiceSearchState>("idle");
   const resultTextRef = useRef("");
+  const speechModuleRef = useRef<any>(null);
+  const listenersRef = useRef<any[]>([]);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -170,10 +169,6 @@ export default function VoiceSearchModal({
   // Mic button animation
   const micScale = useSharedValue(1);
   const micBgOpacity = useSharedValue(0);
-
-  // Upload mutation
-  const uploadMutation = trpc.upload.image.useMutation();
-  const transcribeMutation = trpc.voice.transcribe.useMutation();
 
   // Cleanup on unmount or close
   useEffect(() => {
@@ -191,17 +186,14 @@ export default function VoiceSearchModal({
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    if (webRecognitionRef.current) {
-      try {
-        webRecognitionRef.current.stop();
-      } catch (_e) {}
-      webRecognitionRef.current = null;
-    }
-    if (recorderRef.current) {
-      try {
-        recorderRef.current.stop();
-      } catch (_e) {}
-      recorderRef.current = null;
+    // Remove all speech recognition listeners
+    listenersRef.current.forEach(l => {
+      try { l.remove(); } catch (_e) {}
+    });
+    listenersRef.current = [];
+    // Stop speech recognition if active
+    if (speechModuleRef.current) {
+      try { speechModuleRef.current.abort(); } catch (_e) {}
     }
     cancelAnimation(micScale);
     cancelAnimation(micBgOpacity);
@@ -215,7 +207,6 @@ export default function VoiceSearchModal({
     timerRef.current = setInterval(() => {
       setTimer((prev) => {
         if (prev >= 59) {
-          // Auto-stop after 60 seconds
           handleStopListening();
           return prev;
         }
@@ -253,7 +244,108 @@ export default function VoiceSearchModal({
     micBgOpacity.value = withTiming(0, { duration: 200 });
   }, []);
 
-  // ─── Web Speech API ────────────────────────────────────────────────
+  // ─── Start Listening (Native Speech Recognition) ──────────────────
+  const startListening = useCallback(async () => {
+    setResultText("");
+    setErrorMessage("");
+
+    if (Platform.OS === "web") {
+      // Web: use Web Speech API directly
+      startWebSpeechRecognition();
+      return;
+    }
+
+    // Native: use expo-speech-recognition
+    try {
+      const { ExpoSpeechRecognitionModule } = await import("expo-speech-recognition");
+      speechModuleRef.current = ExpoSpeechRecognitionModule;
+
+      // Request permissions
+      const permResult = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!permResult.granted) {
+        setState("error");
+        setErrorMessage("يجب السماح بالوصول إلى الميكروفون والتعرف على الكلام لاستخدام البحث الصوتي.");
+        return;
+      }
+
+      // Remove old listeners
+      listenersRef.current.forEach(l => {
+        try { l.remove(); } catch (_e) {}
+      });
+      listenersRef.current = [];
+
+      // Register event listeners
+      const startListener = ExpoSpeechRecognitionModule.addListener("start", () => {
+        setState("listening");
+        startTimer();
+        startMicAnimation();
+      });
+
+      const resultListener = ExpoSpeechRecognitionModule.addListener("result", (event: any) => {
+        const transcript = event.results?.[0]?.transcript || "";
+        if (transcript.trim()) {
+          setResultText(transcript.trim());
+        }
+        // If final result, show success
+        if (event.isFinal && transcript.trim()) {
+          stopTimer();
+          stopMicAnimation();
+          setState("success");
+        }
+      });
+
+      const errorListener = ExpoSpeechRecognitionModule.addListener("error", (event: any) => {
+        console.warn("Speech recognition error:", event.error, event.message);
+        stopTimer();
+        stopMicAnimation();
+        if (event.error === "no-speech") {
+          setState("error");
+          setErrorMessage("لم يتم التقاط أي صوت. تأكد من الميكروفون وحاول مرة أخرى.");
+        } else if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          setState("error");
+          setErrorMessage("يجب السماح بالوصول إلى الميكروفون لاستخدام البحث الصوتي.");
+        } else if (event.error === "network") {
+          setState("error");
+          setErrorMessage("تحقق من اتصالك بالإنترنت وحاول مرة أخرى.");
+        } else {
+          setState("error");
+          setErrorMessage("حدث خطأ أثناء التعرف على الكلام. حاول مرة أخرى.");
+        }
+      });
+
+      const endListener = ExpoSpeechRecognitionModule.addListener("end", () => {
+        stopTimer();
+        stopMicAnimation();
+        // If we have a result, show success; otherwise go back to idle
+        if (stateRef.current === "listening") {
+          if (resultTextRef.current.trim()) {
+            setState("success");
+          } else {
+            setState("idle");
+          }
+        }
+      });
+
+      listenersRef.current = [startListener, resultListener, errorListener, endListener];
+
+      // Start speech recognition with Arabic language
+      ExpoSpeechRecognitionModule.start({
+        lang: "ar-EG",
+        interimResults: true,
+        continuous: false,
+        maxAlternatives: 3,
+      });
+
+    } catch (error: any) {
+      console.error("Speech recognition setup error:", error);
+      setState("error");
+      setErrorMessage("حدث خطأ أثناء تهيئة التعرف على الكلام. حاول مرة أخرى.");
+    }
+  }, [startTimer, startMicAnimation, stopTimer, stopMicAnimation]);
+
+  // ─── Web Speech API (fallback for web) ────────────────────────────
+  const webRecognitionRef = useRef<any>(null);
+
   const startWebSpeechRecognition = useCallback(() => {
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
@@ -296,14 +388,10 @@ export default function VoiceSearchModal({
       stopMicAnimation();
       if (event.error === "no-speech") {
         setState("error");
-        setErrorMessage(
-          "لم يتم التقاط أي صوت. تأكد من الميكروفون وحاول مرة أخرى."
-        );
+        setErrorMessage("لم يتم التقاط أي صوت. تأكد من الميكروفون وحاول مرة أخرى.");
       } else if (event.error === "not-allowed") {
         setState("error");
-        setErrorMessage(
-          "يجب السماح بالوصول إلى الميكروفون لاستخدام البحث الصوتي."
-        );
+        setErrorMessage("يجب السماح بالوصول إلى الميكروفون لاستخدام البحث الصوتي.");
       } else {
         setState("error");
         setErrorMessage("حدث خطأ أثناء التعرف على الكلام. حاول مرة أخرى.");
@@ -311,7 +399,6 @@ export default function VoiceSearchModal({
     };
 
     recognition.onend = () => {
-      // If we're still in listening state, it means recognition ended naturally
       if (stateRef.current === "listening") {
         stopTimer();
         stopMicAnimation();
@@ -330,118 +417,7 @@ export default function VoiceSearchModal({
     startMicAnimation();
   }, []);
 
-  // ─── Native Recording (expo-audio) ────────────────────────────────
-  const startNativeRecording = useCallback(async () => {
-    try {
-      const {
-        requestRecordingPermissionsAsync,
-        setAudioModeAsync,
-        useAudioRecorder,
-        RecordingPresets,
-        AudioModule,
-      } = await import("expo-audio");
-
-      const permStatus = await requestRecordingPermissionsAsync();
-
-      if (!permStatus.granted) {
-        setState("error");
-        setErrorMessage(
-          "يجب السماح بالوصول إلى الميكروفون لاستخدام البحث الصوتي."
-        );
-        return;
-      }
-
-      await setAudioModeAsync({
-        allowsRecording: true,
-        playsInSilentMode: true,
-      });
-
-      // Create recorder using AudioRecorder class from AudioModule
-      const recorder = new AudioModule.AudioRecorder(
-        RecordingPresets.HIGH_QUALITY
-      );
-      await recorder.prepareToRecordAsync(RecordingPresets.HIGH_QUALITY);
-      recorder.record();
-      recorderRef.current = recorder;
-
-      setState("listening");
-      startTimer();
-      startMicAnimation();
-    } catch (error: any) {
-      console.error("Recording error:", error);
-      setState("error");
-      setErrorMessage("حدث خطأ أثناء بدء التسجيل. حاول مرة أخرى.");
-    }
-  }, []);
-
-  // ─── Stop Native Recording & Transcribe ───────────────────────────
-  const stopNativeRecording = useCallback(async () => {
-    if (!recorderRef.current) return;
-
-    stopTimer();
-    stopMicAnimation();
-    setState("processing");
-
-    try {
-      const recorder = recorderRef.current;
-      await recorder.stop();
-      const uri = recorder.uri;
-      recorderRef.current = null;
-
-      if (!uri) {
-        setState("error");
-        setErrorMessage("لم يتم حفظ التسجيل الصوتي.");
-        return;
-      }
-
-      // Read the audio file and convert to base64
-      const response = await fetch(uri);
-      const blob = await response.blob();
-
-      // Convert blob to base64
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          const base64Data = result.split(",")[1] || result;
-          resolve(base64Data);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-
-      // Transcribe the audio directly from base64 (faster, no upload needed)
-      const transcribeResult = await transcribeMutation.mutateAsync({
-        audioBase64: base64,
-      });
-
-      if (transcribeResult.text && transcribeResult.text.trim().length > 0) {
-        setResultText(transcribeResult.text.trim());
-        setState("success");
-      } else {
-        setState("error");
-        setErrorMessage("لم يتم التعرف على كلام. حاول التحدث بوضوح أكثر.");
-      }
-    } catch (error: any) {
-      console.error("Transcription error:", error);
-      setState("error");
-      setErrorMessage("حدث خطأ أثناء تحويل الصوت إلى نص. حاول مرة أخرى.");
-    }
-  }, []);
-
-  // ─── Start Listening ───────────────────────────────────────────────
-  const startListening = useCallback(() => {
-    setResultText("");
-    setErrorMessage("");
-
-    if (Platform.OS === "web") {
-      startWebSpeechRecognition();
-    } else {
-      startNativeRecording();
-    }
-  }, [startWebSpeechRecognition, startNativeRecording]);
-
-  // ─── Stop Listening (stable ref for timer) ─────────────────────────
+  // ─── Stop Listening ────────────────────────────────────────────────
   const handleStopListening = useCallback(() => {
     stopTimer();
     stopMicAnimation();
@@ -457,9 +433,20 @@ export default function VoiceSearchModal({
         setState("idle");
       }
     } else {
-      stopNativeRecording();
+      // Native: stop expo-speech-recognition
+      if (speechModuleRef.current) {
+        try {
+          speechModuleRef.current.stop();
+        } catch (_e) {}
+      }
+      // The "end" event listener will handle state transition
+      if (resultTextRef.current.trim()) {
+        setState("success");
+      } else {
+        setState("idle");
+      }
     }
-  }, [stopNativeRecording]);
+  }, [stopTimer, stopMicAnimation]);
 
   // ─── Handle Use Result ─────────────────────────────────────────────
   const handleUseResult = useCallback(() => {
@@ -489,7 +476,6 @@ export default function VoiceSearchModal({
   // ─── Auto-start on open ───────────────────────────────────────────
   useEffect(() => {
     if (visible && state === "idle") {
-      // Small delay for modal animation
       const timeout = setTimeout(() => {
         startListening();
       }, 500);
@@ -586,7 +572,7 @@ export default function VoiceSearchModal({
               </View>
             )}
 
-            {/* Interim Result (while listening on web) */}
+            {/* Interim Result (while listening) */}
             {state === "listening" && resultText.length > 0 && (
               <View style={styles.interimContainer}>
                 <Text style={styles.interimText}>{resultText}</Text>

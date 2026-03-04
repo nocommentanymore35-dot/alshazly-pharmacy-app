@@ -108,6 +108,14 @@ const config: ExpoConfig = {
       },
     ],
     [
+      "expo-speech-recognition",
+      {
+        microphonePermission: "يحتاج التطبيق إلى الوصول إلى الميكروفون لاستخدام البحث الصوتي.",
+        speechRecognitionPermission: "يحتاج التطبيق إلى إذن التعرف على الكلام لاستخدام البحث الصوتي.",
+        androidSpeechServicePackages: ["com.google.android.googlequicksearchbox"],
+      },
+    ],
+    [
       "expo-video",
       {
         supportsBackgroundPlayback: true,

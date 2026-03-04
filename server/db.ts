@@ -132,11 +132,32 @@ export async function searchMedicines(query: string) {
   if (!db) return [];
   const allMeds = await db.select().from(medicines).where(eq(medicines.isActive, true));
   const normalizedQuery = normalizeArabic(query.toLowerCase().trim());
+  
+  // Split query into fragments for fuzzy/partial matching
+  // e.g., "au n" -> ["au", "n"] -> both must exist in the medicine name
+  const fragments = normalizedQuery.split(/\s+/).filter(f => f.length > 0);
+  
+  if (fragments.length === 0) return [];
+  
   return allMeds.filter(med => {
     const nameAr = normalizeArabic((med.nameAr || '').toLowerCase());
     const nameEn = (med.nameEn || '').toLowerCase();
-    return nameAr.startsWith(normalizedQuery) || nameAr.includes(normalizedQuery)
-      || nameEn.startsWith(normalizedQuery) || nameEn.includes(normalizedQuery);
+    
+    // If single fragment, use original logic (includes)
+    if (fragments.length === 1) {
+      return nameAr.includes(fragments[0]) || nameEn.includes(fragments[0]);
+    }
+    
+    // For multiple fragments: ALL fragments must be found in either Arabic or English name
+    // This allows "au n" to match "augmentin" (both "au" and "n" are in "augmentin")
+    const allInAr = fragments.every(f => nameAr.includes(f));
+    const allInEn = fragments.every(f => nameEn.includes(f));
+    
+    // Also check if fragments match across combined Arabic+English
+    const combined = nameAr + ' ' + nameEn;
+    const allInCombined = fragments.every(f => combined.includes(f));
+    
+    return allInAr || allInEn || allInCombined;
   });
 }
 
