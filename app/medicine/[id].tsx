@@ -110,7 +110,7 @@ export default function MedicineDetailScreen() {
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           {/* Image */}
-          {medicine.imageUrl ? (
+          {medicine.imageUrl && !medicine.imageUrl.includes('railway.app/uploads/') ? (
             <Image source={{ uri: medicine.imageUrl }} style={styles.image} contentFit="cover" />
           ) : (
             <View style={[styles.image, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>

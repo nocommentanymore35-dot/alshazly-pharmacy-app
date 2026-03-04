@@ -46,7 +46,7 @@ export default function CartScreen() {
 
     return (
       <View style={styles.cartItem}>
-        {item.imageUrl ? (
+        {item.imageUrl && !item.imageUrl.includes('railway.app/uploads/') ? (
           <Image source={{ uri: item.imageUrl }} style={styles.itemImage} contentFit="cover" />
         ) : (
           <View style={[styles.itemImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>

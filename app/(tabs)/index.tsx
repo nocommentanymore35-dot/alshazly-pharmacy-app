@@ -99,7 +99,7 @@ export default function HomeScreen() {
       onPress={() => router.push(`/medicine/${item.id}` as any)}
       style={({ pressed }) => [styles.medicineCard, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
     >
-      {item.imageUrl ? (
+      {item.imageUrl && !item.imageUrl.includes('railway.app/uploads/') ? (
         <Image source={{ uri: item.imageUrl }} style={styles.medicineImage} contentFit="cover" />
       ) : (
         <View style={[styles.medicineImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
@@ -201,7 +201,7 @@ export default function HomeScreen() {
                     onPress={() => router.push(`/banner/${item.id}` as any)}
                     style={({ pressed }) => [styles.bannerItem, pressed && { opacity: 0.9 }]}
                   >
-                    {item.imageUrl ? (
+                    {item.imageUrl && !item.imageUrl.includes('railway.app/uploads/') ? (
                       <Image source={{ uri: item.imageUrl }} style={styles.bannerImage} contentFit="cover" />
                     ) : (
                       <View style={[styles.bannerImage, { backgroundColor: "#2563EB", justifyContent: "center", alignItems: "center" }]}>

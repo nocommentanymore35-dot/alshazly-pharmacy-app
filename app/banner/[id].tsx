@@ -48,7 +48,7 @@ export default function BannerDetailScreen() {
         </View>
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-          {banner.imageUrl ? (
+          {banner.imageUrl && !banner.imageUrl.includes('railway.app/uploads/') ? (
             <Image source={{ uri: banner.imageUrl }} style={styles.image} contentFit="cover" />
           ) : (
             <View style={[styles.image, { backgroundColor: "#2563EB", justifyContent: "center", alignItems: "center" }]}>

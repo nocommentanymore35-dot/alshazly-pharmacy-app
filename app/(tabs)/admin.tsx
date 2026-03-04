@@ -13,6 +13,12 @@ import ImagePickerButton from "@/components/ImagePickerButton";
 
 type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "settings";
 
+// Helper: check if image URL is broken (old local URL that no longer exists)
+function isBrokenImageUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return url.includes('railway.app/uploads/');
+}
+
 const STATUS_OPTIONS = [
   { key: "received", label: "تم الاستقبال" },
   { key: "preparing", label: "قيد التجهيز" },
@@ -417,21 +423,30 @@ function MedicinesManagement() {
       {meds.map((med: any) => (
         <View key={med.id} style={styles.adminCard}>
           <View style={{ flexDirection: "row", gap: 10 }}>
-            {med.imageUrl ? (
+            {med.imageUrl && !isBrokenImageUrl(med.imageUrl) ? (
               <Image source={{ uri: med.imageUrl }} style={{ width: 50, height: 50, borderRadius: 8 }} contentFit="cover" />
             ) : (
-              <View style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" }}>
-                <MaterialIcons name="medication" size={24} color="#D1D5DB" />
+              <View style={{ width: 50, height: 50, borderRadius: 8, backgroundColor: isBrokenImageUrl(med.imageUrl) ? "#FEE2E2" : "#F3F4F6", alignItems: "center", justifyContent: "center" }}>
+                <MaterialIcons name={isBrokenImageUrl(med.imageUrl) ? "broken-image" : "medication"} size={24} color={isBrokenImageUrl(med.imageUrl) ? "#DC2626" : "#D1D5DB"} />
               </View>
             )}
             <View style={{ flex: 1 }}>
               <Text style={styles.adminCardTitle}>{med.nameAr}</Text>
               <Text style={styles.adminCardSubtitle}>{med.nameEn}</Text>
               <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط: {med.strips ?? 1} | مخزون: {med.stock}</Text>
+              {isBrokenImageUrl(med.imageUrl) && (
+                <Text style={{ fontSize: 10, color: "#DC2626", marginTop: 2 }}>⚠ الصورة مفقودة - اضغط تعديل لإعادة رفعها</Text>
+              )}
             </View>
             <Text style={styles.medPrice}>{parseFloat(med.price).toFixed(2)} ج.م</Text>
           </View>
           <View style={styles.adminCardActions}>
+            {isBrokenImageUrl(med.imageUrl) && (
+              <Pressable onPress={() => { handleEdit(med); }} style={({ pressed }) => [{ flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "#FEF3C7", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 }, pressed && { opacity: 0.7 }]}>
+                <MaterialIcons name="cloud-upload" size={18} color="#D97706" />
+                <Text style={{ fontSize: 12, color: "#D97706", fontWeight: "600" }}>إعادة رفع الصورة</Text>
+              </Pressable>
+            )}
             <Pressable onPress={() => handleEdit(med)} style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.7 }]}>
               <MaterialIcons name="edit" size={18} color="#2563EB" />
               <Text style={styles.editBtnText}>تعديل</Text>
@@ -638,8 +653,13 @@ function BannersManagement() {
 
       {bannersList.map((banner: any) => (
         <View key={banner.id} style={styles.adminCard}>
-          {banner.imageUrl ? (
+          {banner.imageUrl && !isBrokenImageUrl(banner.imageUrl) ? (
             <Image source={{ uri: banner.imageUrl }} style={{ width: "100%", height: 100, borderRadius: 8, marginBottom: 8 }} contentFit="cover" />
+          ) : isBrokenImageUrl(banner.imageUrl) ? (
+            <View style={{ width: "100%", height: 100, borderRadius: 8, marginBottom: 8, backgroundColor: "#FEE2E2", alignItems: "center", justifyContent: "center" }}>
+              <MaterialIcons name="broken-image" size={32} color="#DC2626" />
+              <Text style={{ fontSize: 11, color: "#DC2626", marginTop: 4 }}>⚠ الصورة مفقودة - اضغط تعديل لإعادة رفعها</Text>
+            </View>
           ) : null}
           <View style={styles.adminCardHeader}>
             <View style={{ flex: 1 }}>

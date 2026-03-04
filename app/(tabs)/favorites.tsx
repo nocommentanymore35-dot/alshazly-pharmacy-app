@@ -22,7 +22,7 @@ export default function FavoritesScreen() {
       onPress={() => router.push(`/medicine/${item.medicineId}` as any)}
       style={({ pressed }) => [styles.favItem, pressed && { opacity: 0.9 }]}
     >
-      {item.imageUrl ? (
+      {item.imageUrl && !item.imageUrl.includes('railway.app/uploads/') ? (
         <Image source={{ uri: item.imageUrl }} style={styles.itemImage} contentFit="cover" />
       ) : (
         <View style={[styles.itemImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
