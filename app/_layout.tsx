@@ -130,7 +130,7 @@ export default function RootLayout() {
               <Stack.Screen name="order-tracking" options={{ presentation: "card" }} />
             </Stack>
             <PushNotificationRegistrar />
-            <StatusBar style="light" />
+            <StatusBar style="dark" backgroundColor="#ffffff" />
           </AppProvider>
         </QueryClientProvider>
       </trpc.Provider>
