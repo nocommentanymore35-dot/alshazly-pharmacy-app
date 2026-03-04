@@ -119,11 +119,14 @@ export async function getMedicinesByCategory(categoryId: number) {
   return db.select().from(medicines).where(and(eq(medicines.categoryId, categoryId), eq(medicines.isActive, true)));
 }
 
-// Normalize Arabic alif variants for search (أ إ آ ا → ا)
+// Normalize Arabic characters for search
+// أ إ آ ا → ا | ة → ه | ي ى → ي | و ؤ → و | remove tashkeel
 function normalizeArabic(text: string): string {
   return text
     .replace(/[\u0623\u0625\u0622]/g, '\u0627') // أ إ آ → ا
     .replace(/[\u0629]/g, '\u0647') // ة → ه
+    .replace(/[\u0649]/g, '\u064A') // ى → ي
+    .replace(/[\u0624]/g, '\u0648') // ؤ → و
     .replace(/[\u064B-\u065F\u0670]/g, ''); // remove tashkeel
 }
 
