@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Text, View, ScrollView, ActivityIndicator, StyleSheet, Platform, Animated as RNAnimated } from "react-native";
+import { Text, View, ScrollView, ActivityIndicator, StyleSheet, Platform, Animated as RNAnimated, Alert } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScreenContainer } from "@/components/screen-container";
@@ -51,7 +51,13 @@ export default function MedicineDetailScreen() {
   const currentUnitPrice = unitType === "strip" ? stripPrice : boxPrice;
   const totalPrice = currentUnitPrice * quantity;
 
+  const isOutOfStock = (medicine.stock ?? 0) <= 0;
+
   const handleAddToCart = () => {
+    if (isOutOfStock) {
+      Alert.alert("غير متوفر", "هذا الصنف غير متوفر حالياً");
+      return;
+    }
     addToCart({
       medicineId: medicine.id,
       nameAr: medicine.nameAr,
@@ -250,20 +256,23 @@ export default function MedicineDetailScreen() {
           {/* Add to Cart Button */}
           <Pressable
             onPress={handleAddToCart}
-            disabled={isInCart(medicine.id)}
+            disabled={isInCart(medicine.id) || isOutOfStock}
             style={({ pressed }) => [
               styles.addToCartBtn,
-              isInCart(medicine.id) && styles.addToCartBtnDisabled,
-              pressed && !isInCart(medicine.id) && { opacity: 0.9, transform: [{ scale: 0.97 }] },
+              (isInCart(medicine.id) || isOutOfStock) && styles.addToCartBtnDisabled,
+              isOutOfStock && { backgroundColor: "#DC2626", opacity: 0.7 },
+              pressed && !isInCart(medicine.id) && !isOutOfStock && { opacity: 0.9, transform: [{ scale: 0.97 }] },
             ]}
           >
-            <MaterialIcons name="shopping-cart" size={24} color="#fff" />
+            <MaterialIcons name={isOutOfStock ? "remove-shopping-cart" : "shopping-cart"} size={24} color="#fff" />
             <Text style={styles.addToCartText}>
-              {isInCart(medicine.id) ? "في السلة" : "إضافة للسلة"}
+              {isOutOfStock ? "غير متوفر حالياً" : isInCart(medicine.id) ? "في السلة" : "إضافة للسلة"}
             </Text>
-            <Text style={styles.addToCartPrice}>
-              {totalPrice.toFixed(2)} ج.م
-            </Text>
+            {!isOutOfStock && (
+              <Text style={styles.addToCartPrice}>
+                {totalPrice.toFixed(2)} ج.م
+              </Text>
+            )}
           </Pressable>
         </View>
       </View>
