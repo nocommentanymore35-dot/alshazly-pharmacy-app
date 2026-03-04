@@ -99,13 +99,25 @@ export default function HomeScreen() {
       onPress={() => router.push(`/medicine/${item.id}` as any)}
       style={({ pressed }) => [styles.medicineCard, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
     >
-      {item.imageUrl && !item.imageUrl.includes('railway.app/uploads/') ? (
-        <Image source={{ uri: item.imageUrl }} style={styles.medicineImage} contentFit="cover" />
-      ) : (
-        <View style={[styles.medicineImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
-          <MaterialIcons name="medication" size={40} color="#2563EB" />
+      <View>
+        {item.imageUrl && !item.imageUrl.includes('railway.app/uploads/') ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.medicineImage} contentFit="cover" />
+        ) : (
+          <View style={[styles.medicineImage, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
+            <MaterialIcons name="medication" size={40} color="#2563EB" />
+          </View>
+        )}
+        {/* Stock badge on image */}
+        <View style={{
+          position: "absolute", top: 4, right: 4,
+          backgroundColor: (item.stock ?? 0) > 0 ? "#22C55E" : "#DC2626",
+          borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2,
+        }}>
+          <Text style={{ fontSize: 8, color: "#fff", fontWeight: "bold" }}>
+            {(item.stock ?? 0) > 0 ? "متوفر" : "نفد"}
+          </Text>
         </View>
-      )}
+      </View>
       <View style={styles.medicineInfo}>
         <Text style={styles.medicineName} numberOfLines={1}>{item.nameAr}</Text>
         <Text style={styles.medicineNameEn} numberOfLines={1}>{item.nameEn}</Text>

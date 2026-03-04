@@ -110,13 +110,27 @@ export default function MedicineDetailScreen() {
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           {/* Image */}
-          {medicine.imageUrl && !medicine.imageUrl.includes('railway.app/uploads/') ? (
-            <Image source={{ uri: medicine.imageUrl }} style={styles.image} contentFit="cover" />
-          ) : (
-            <View style={[styles.image, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
-              <MaterialIcons name="medication" size={80} color="#2563EB" />
+          <View>
+            {medicine.imageUrl && !medicine.imageUrl.includes('railway.app/uploads/') ? (
+              <Image source={{ uri: medicine.imageUrl }} style={styles.image} contentFit="cover" />
+            ) : (
+              <View style={[styles.image, { backgroundColor: "#E8EDF3", justifyContent: "center", alignItems: "center" }]}>
+                <MaterialIcons name="medication" size={80} color="#2563EB" />
+              </View>
+            )}
+            {/* Stock badge */}
+            <View style={{
+              position: "absolute", top: 12, right: 12,
+              backgroundColor: (medicine.stock ?? 0) > 0 ? "#22C55E" : "#DC2626",
+              borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+              flexDirection: "row", alignItems: "center", gap: 4,
+            }}>
+              <MaterialIcons name={(medicine.stock ?? 0) > 0 ? "check-circle" : "cancel"} size={14} color="#fff" />
+              <Text style={{ fontSize: 12, color: "#fff", fontWeight: "bold" }}>
+                {(medicine.stock ?? 0) > 0 ? "متوفر" : "غير متوفر"}
+              </Text>
             </View>
-          )}
+          </View>
 
           {/* Info */}
           <View style={styles.infoSection}>
