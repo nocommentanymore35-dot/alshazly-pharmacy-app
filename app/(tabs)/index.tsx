@@ -187,7 +187,7 @@ export default function HomeScreen() {
               snapToInterval={BANNER_WIDTH + 12}
               snapToAlignment="start"
               decelerationRate="fast"
-              contentContainerStyle={{ paddingLeft: 16, paddingRight: 4 }}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
               onMomentumScrollEnd={(e) => {
                 const index = Math.round(e.nativeEvent.contentOffset.x / (BANNER_WIDTH + 12));
                 const clampedIndex = Math.max(0, Math.min(index, banners.length - 1));
