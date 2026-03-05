@@ -130,6 +130,75 @@ function normalizeArabic(text: string): string {
     .replace(/[\u064B-\u065F\u0670]/g, ''); // remove tashkeel
 }
 
+// ===== LEVENSHTEIN DISTANCE (Fuzzy Matching) =====
+function levenshteinDistance(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  
+  // Use single array optimization for memory efficiency
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  let curr = new Array(n + 1);
+  
+  for (let i = 1; i <= m; i++) {
+    curr[0] = i;
+    for (let j = 1; j <= n; j++) {
+      if (a[i - 1] === b[j - 1]) {
+        curr[j] = prev[j - 1];
+      } else {
+        curr[j] = 1 + Math.min(prev[j - 1], prev[j], curr[j - 1]);
+      }
+    }
+    [prev, curr] = [curr, prev];
+  }
+  return prev[n];
+}
+
+// Check if query approximately matches a word in the name
+// Returns best distance found (0 = exact, 1 = one char diff, etc.)
+function fuzzyWordMatch(query: string, name: string): number {
+  const queryWords = query.split(/\s+/).filter(w => w.length > 0);
+  const nameWords = name.split(/\s+/).filter(w => w.length > 0);
+  
+  if (queryWords.length === 0) return 999;
+  
+  let totalDistance = 0;
+  
+  for (const qWord of queryWords) {
+    let bestDist = 999;
+    
+    // Compare against each word in the name
+    for (const nWord of nameWords) {
+      const dist = levenshteinDistance(qWord, nWord);
+      bestDist = Math.min(bestDist, dist);
+    }
+    
+    // Also check substring matching for the full name
+    // e.g., "بنادول" vs "بانادول" - check against the full name too
+    const fullDist = levenshteinDistance(qWord, name);
+    // For substring: slide a window of qWord length (+/- 2) across the name
+    for (let len = Math.max(1, qWord.length - 2); len <= qWord.length + 2 && len <= name.length; len++) {
+      for (let start = 0; start + len <= name.length; start++) {
+        const sub = name.substring(start, start + len);
+        const subDist = levenshteinDistance(qWord, sub);
+        bestDist = Math.min(bestDist, subDist);
+      }
+    }
+    
+    totalDistance += bestDist;
+  }
+  
+  return totalDistance;
+}
+
+// Calculate max allowed distance based on word length
+function getMaxDistance(wordLength: number): number {
+  if (wordLength <= 3) return 1;  // short words: 1 char tolerance
+  if (wordLength <= 6) return 2;  // medium words: 2 char tolerance
+  return 3;                        // long words: 3 char tolerance
+}
+
 // ===== SEARCH CACHE =====
 interface SearchCacheEntry {
   results: any[];
@@ -214,14 +283,40 @@ export async function searchMedicines(query: string) {
     return 4 + Math.min(gapAr, gapEn);
   }
   
-  const results = allMeds
+  // Phase 1: Exact/regex matching (fast)
+  const exactResults = allMeds
     .filter(med => {
       const nameAr = normalizeArabic((med.nameAr || '').toLowerCase());
       const nameEn = (med.nameEn || '').toLowerCase();
       const combined = nameAr + ' ' + nameEn;
       return regex.test(nameAr) || regex.test(nameEn) || regex.test(combined);
     })
-    .map(med => ({ ...med, _score: getMatchScore(med) }))
+    .map(med => ({ ...med, _score: getMatchScore(med) }));
+  
+  // Phase 2: Fuzzy matching with Levenshtein (only if exact results are few)
+  // This catches voice search errors like "بنادول" instead of "بانادول"
+  const maxDist = getMaxDistance(normalizedQuery.length);
+  let fuzzyResults: typeof exactResults = [];
+  
+  if (exactResults.length < 5) {
+    const exactIds = new Set(exactResults.map(m => m.id));
+    fuzzyResults = allMeds
+      .filter(med => !exactIds.has(med.id)) // Skip already matched
+      .map(med => {
+        const nameAr = normalizeArabic((med.nameAr || '').toLowerCase());
+        const nameEn = (med.nameEn || '').toLowerCase();
+        
+        const distAr = fuzzyWordMatch(normalizedQuery, nameAr);
+        const distEn = fuzzyWordMatch(normalizedQuery, nameEn);
+        const bestDist = Math.min(distAr, distEn);
+        
+        return { ...med, _score: bestDist <= maxDist ? 100 + bestDist : 999 };
+      })
+      .filter(med => med._score < 999);
+  }
+  
+  // Combine and sort
+  const results = [...exactResults, ...fuzzyResults]
     .sort((a, b) => a._score - b._score)
     .map(({ _score, ...med }) => med); // Remove score from output
   
