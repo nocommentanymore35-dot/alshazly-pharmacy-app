@@ -130,16 +130,51 @@ function normalizeArabic(text: string): string {
     .replace(/[\u064B-\u065F\u0670]/g, ''); // remove tashkeel
 }
 
+// ===== SEARCH CACHE =====
+interface SearchCacheEntry {
+  results: any[];
+  timestamp: number;
+}
+const searchCache = new Map<string, SearchCacheEntry>();
+const SEARCH_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const SEARCH_CACHE_MAX_SIZE = 200;
+
+function cleanSearchCache() {
+  const now = Date.now();
+  for (const [key, entry] of searchCache.entries()) {
+    if (now - entry.timestamp > SEARCH_CACHE_TTL) {
+      searchCache.delete(key);
+    }
+  }
+  // If still too large, remove oldest entries
+  if (searchCache.size > SEARCH_CACHE_MAX_SIZE) {
+    const entries = Array.from(searchCache.entries()).sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toRemove = entries.slice(0, entries.length - SEARCH_CACHE_MAX_SIZE);
+    toRemove.forEach(([key]) => searchCache.delete(key));
+  }
+}
+
+// Invalidate search cache when medicines are modified
+export function invalidateSearchCache() {
+  searchCache.clear();
+}
+
 export async function searchMedicines(query: string) {
   const db = await getDb();
   if (!db) return [];
-  const allMeds = await db.select().from(medicines).where(eq(medicines.isActive, true));
+  
   const normalizedQuery = normalizeArabic(query.toLowerCase().trim());
   
+  // Check cache first
+  const cacheKey = normalizedQuery;
+  const cached = searchCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < SEARCH_CACHE_TTL) {
+    return cached.results;
+  }
+  
+  const allMeds = await db.select().from(medicines).where(eq(medicines.isActive, true));
+  
   // Split query into fragments for sequential fuzzy matching
-  // e.g., "au in" -> ["au", "in"] -> builds regex: au.*in
-  // So "au in" matches "augmentin" because "au" comes before "in" in the name
-  // And "a n" matches anything starting with "a" and ending with "n" like "augmentin"
   const fragments = normalizedQuery.split(/\s+/).filter(f => f.length > 0);
   
   if (fragments.length === 0) return [];
@@ -148,17 +183,53 @@ export async function searchMedicines(query: string) {
   const escapeRegex = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   
   // Build a regex pattern: fragment1.*fragment2.*fragment3...
-  // This ensures fragments appear IN ORDER within the name
   const pattern = fragments.map(f => escapeRegex(f)).join('.*');
   const regex = new RegExp(pattern, 'i');
   
-  return allMeds.filter(med => {
+  // Score function: lower score = better match (closer to exact match)
+  function getMatchScore(med: any): number {
     const nameAr = normalizeArabic((med.nameAr || '').toLowerCase());
     const nameEn = (med.nameEn || '').toLowerCase();
-    const combined = nameAr + ' ' + nameEn;
+    const fullQuery = fragments.join('');
     
-    return regex.test(nameAr) || regex.test(nameEn) || regex.test(combined);
-  });
+    // Exact match gets highest priority
+    if (nameAr === normalizedQuery || nameEn === normalizedQuery) return 0;
+    
+    // Starts with query
+    if (nameAr.startsWith(normalizedQuery) || nameEn.startsWith(normalizedQuery)) return 1;
+    if (nameAr.startsWith(fullQuery) || nameEn.startsWith(fullQuery)) return 2;
+    
+    // Contains query as substring (no gaps)
+    if (nameAr.includes(fullQuery) || nameEn.includes(fullQuery)) return 3;
+    
+    // Fuzzy match - score by total gap length (shorter gaps = better)
+    const matchInName = (name: string): number => {
+      const match = name.match(regex);
+      if (!match) return 999;
+      return match[0].length - fullQuery.length; // gap size
+    };
+    
+    const gapAr = matchInName(nameAr);
+    const gapEn = matchInName(nameEn);
+    return 4 + Math.min(gapAr, gapEn);
+  }
+  
+  const results = allMeds
+    .filter(med => {
+      const nameAr = normalizeArabic((med.nameAr || '').toLowerCase());
+      const nameEn = (med.nameEn || '').toLowerCase();
+      const combined = nameAr + ' ' + nameEn;
+      return regex.test(nameAr) || regex.test(nameEn) || regex.test(combined);
+    })
+    .map(med => ({ ...med, _score: getMatchScore(med) }))
+    .sort((a, b) => a._score - b._score)
+    .map(({ _score, ...med }) => med); // Remove score from output
+  
+  // Store in cache
+  searchCache.set(cacheKey, { results, timestamp: Date.now() });
+  cleanSearchCache();
+  
+  return results;
 }
 
 export async function getMedicineById(id: number) {
@@ -506,4 +577,82 @@ export async function removePushToken(token: string) {
   const db = await getDb();
   if (!db) return;
   await db.delete(pushTokens).where(eq(pushTokens.token, token));
+}
+
+// ===== MOST ORDERED (POPULAR) MEDICINES =====
+export async function getMostOrderedMedicines(limit: number = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  const result = await db.select({
+    medicineId: orderItems.medicineId,
+    medicineName: orderItems.medicineName,
+    totalOrdered: sql<number>`SUM(${orderItems.quantity})`,
+    orderCount: sql<number>`COUNT(DISTINCT ${orderItems.orderId})`,
+  })
+    .from(orderItems)
+    .groupBy(orderItems.medicineId, orderItems.medicineName)
+    .orderBy(desc(sql`SUM(${orderItems.quantity})`))
+    .limit(limit);
+  return result;
+}
+
+// ===== LOW STOCK ALERT =====
+export async function getLowStockMedicines(threshold: number = 5) {
+  const db = await getDb();
+  if (!db) return [];
+  const result = await db.select()
+    .from(medicines)
+    .where(and(
+      eq(medicines.isActive, true),
+      sql`${medicines.stock} <= ${threshold}`
+    ))
+    .orderBy(medicines.stock);
+  return result;
+}
+
+// ===== DAILY ORDERS REPORT =====
+export async function getDailyOrdersReport(date?: Date) {
+  const db = await getDb();
+  if (!db) return { date: '', totalOrders: 0, totalRevenue: '0', orders: [], topItems: [] };
+  
+  const targetDate = date || new Date();
+  const dayStart = new Date(targetDate);
+  dayStart.setHours(0, 0, 0, 0);
+  const dayEnd = new Date(targetDate);
+  dayEnd.setHours(23, 59, 59, 999);
+  
+  // Get orders for the day
+  const dayOrders = await db.select().from(orders)
+    .where(and(
+      gte(orders.createdAt, dayStart),
+      sql`${orders.createdAt} <= ${dayEnd}`
+    ))
+    .orderBy(desc(orders.createdAt));
+  
+  // Calculate totals
+  const totalOrders = dayOrders.length;
+  const totalRevenue = dayOrders.reduce((sum, o) => sum + parseFloat(o.totalAmount || '0'), 0).toFixed(2);
+  
+  // Get top items for the day
+  const orderIds = dayOrders.map(o => o.id);
+  let topItems: any[] = [];
+  if (orderIds.length > 0) {
+    topItems = await db.select({
+      medicineName: orderItems.medicineName,
+      totalQuantity: sql<number>`SUM(${orderItems.quantity})`,
+      totalRevenue: sql<string>`COALESCE(SUM(CAST(${orderItems.price} AS DECIMAL(10,2)) * ${orderItems.quantity}), 0)`,
+    })
+      .from(orderItems)
+      .where(sql`${orderItems.orderId} IN (${sql.join(orderIds.map(id => sql`${id}`), sql`, `)})`)
+      .groupBy(orderItems.medicineName)
+      .orderBy(desc(sql`SUM(${orderItems.quantity})`));
+  }
+  
+  return {
+    date: dayStart.toISOString().split('T')[0],
+    totalOrders,
+    totalRevenue,
+    orders: dayOrders,
+    topItems,
+  };
 }

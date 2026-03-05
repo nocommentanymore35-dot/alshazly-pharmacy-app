@@ -7,6 +7,7 @@ import { notifyOwner } from "./_core/notification";
 import { storagePut } from "./storage";
 import { notifyAdminNewOrder, notifyCustomerOrderStatus, notifyAdminNewCustomer } from "./pushNotifications";
 import * as db from "./db";
+import { invalidateSearchCache } from "./db";
 
 // Daily search limit per device
 const DAILY_SEARCH_LIMIT = 50;
@@ -62,7 +63,12 @@ export const appRouter = router({
           }
           await db.logSearch(input.deviceId, input.query);
         }
-        return db.searchMedicines(input.query);
+        // Clean voice search text: remove punctuation, extra spaces
+        const cleanQuery = input.query
+          .replace(/[.,،؟?!؛;:"'()\[\]{}]/g, '') // remove punctuation
+          .replace(/\s+/g, ' ') // normalize spaces
+          .trim();
+        return db.searchMedicines(cleanQuery);
       }),
     byId: publicProcedure
       .input(z.object({ id: z.number() }))
@@ -84,10 +90,10 @@ export const appRouter = router({
         categoryId: z.number().optional(), stock: z.number().optional(),
         strips: z.number().optional(), isActive: z.boolean().optional(),
       }))
-      .mutation(({ input }) => { const { id, ...data } = input; return db.updateMedicine(id, data); }),
+      .mutation(async ({ input }) => { const { id, ...data } = input; const result = await db.updateMedicine(id, data); invalidateSearchCache(); return result; }),
     delete: publicProcedure
       .input(z.object({ id: z.number() }))
-      .mutation(({ input }) => db.deleteMedicine(input.id)),
+      .mutation(async ({ input }) => { const result = await db.deleteMedicine(input.id); invalidateSearchCache(); return result; }),
   }),
 
   // Banners
@@ -185,6 +191,17 @@ export const appRouter = router({
           const adminTokens = await db.getAdminPushTokens();
           await notifyAdminNewOrder(adminTokens, orderId, input.customerName, input.totalAmount, input.paymentMethod);
         } catch (e) { console.warn("Failed to send push to admin:", e); }
+        // Check for low stock after order and notify admin
+        try {
+          const lowStockItems = await db.getLowStockMedicines(5);
+          if (lowStockItems.length > 0) {
+            const lowStockNames = lowStockItems.slice(0, 5).map(m => `${m.nameAr} (${m.stock})`).join('\n');
+            await notifyOwner({
+              title: `تنبيه: ${lowStockItems.length} صنف بمخزون منخفض`,
+              content: `الأصناف التالية مخزونها منخفض:\n${lowStockNames}`,
+            });
+          }
+        } catch (e) { console.warn("Failed to check low stock:", e); }
         return orderId;
       }),
     byCustomer: publicProcedure
@@ -235,6 +252,21 @@ export const appRouter = router({
     reset: publicProcedure.mutation(() => db.resetSalesReport()),
     // Top searchers today
     topSearchers: publicProcedure.query(() => db.getTopSearchersToday()),
+    // Most ordered medicines
+    mostOrdered: publicProcedure
+      .input(z.object({ limit: z.number().optional() }).optional())
+      .query(({ input }) => db.getMostOrderedMedicines(input?.limit ?? 10)),
+    // Low stock alert
+    lowStock: publicProcedure
+      .input(z.object({ threshold: z.number().optional() }).optional())
+      .query(({ input }) => db.getLowStockMedicines(input?.threshold ?? 5)),
+    // Daily orders report
+    daily: publicProcedure
+      .input(z.object({ date: z.string().optional() }).optional())
+      .query(({ input }) => {
+        const date = input?.date ? new Date(input.date) : undefined;
+        return db.getDailyOrdersReport(date);
+      }),
   }),
 
   // App Settings
