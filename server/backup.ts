@@ -38,6 +38,22 @@ interface BackupData {
   };
 }
 
+// Safe query helper - returns empty array if table doesn't exist
+async function safeSelect(db: any, table: any, orderByCol?: any): Promise<any[]> {
+  try {
+    if (orderByCol) {
+      return await db.select().from(table).orderBy(desc(orderByCol));
+    }
+    return await db.select().from(table);
+  } catch (error: any) {
+    if (error?.cause?.code === 'ER_NO_SUCH_TABLE' || error?.message?.includes("doesn't exist")) {
+      console.warn(`[Backup] Table skipped (not found): ${error?.cause?.sqlMessage || error.message}`);
+      return [];
+    }
+    throw error;
+  }
+}
+
 // ===== EXPORT ALL DATA =====
 export async function exportAllData(): Promise<BackupData> {
   const db = await getDb();
@@ -55,16 +71,16 @@ export async function exportAllData(): Promise<BackupData> {
     pushTokensData,
     stockAlertsData,
   ] = await Promise.all([
-    db.select().from(categories),
-    db.select().from(medicines),
-    db.select().from(banners),
-    db.select().from(customers),
-    db.select().from(orders).orderBy(desc(orders.createdAt)),
-    db.select().from(orderItems),
-    db.select().from(adminCredentials),
-    db.select().from(appSettings),
-    db.select().from(pushTokens),
-    db.select().from(stockAlerts),
+    safeSelect(db, categories),
+    safeSelect(db, medicines),
+    safeSelect(db, banners),
+    safeSelect(db, customers),
+    safeSelect(db, orders, orders.createdAt),
+    safeSelect(db, orderItems),
+    safeSelect(db, adminCredentials),
+    safeSelect(db, appSettings),
+    safeSelect(db, pushTokens),
+    safeSelect(db, stockAlerts),
   ]);
 
   return {
