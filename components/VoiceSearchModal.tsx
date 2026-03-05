@@ -157,6 +157,7 @@ export default function VoiceSearchModal({
   const resultTextRef = useRef("");
   const speechModuleRef = useRef<any>(null);
   const listenersRef = useRef<any[]>([]);
+  const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep refs in sync with state
   useEffect(() => {
@@ -185,6 +186,10 @@ export default function VoiceSearchModal({
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
+    }
+    if (autoStopTimerRef.current) {
+      clearTimeout(autoStopTimerRef.current);
+      autoStopTimerRef.current = null;
     }
     // Remove all speech recognition listeners
     listenersRef.current.forEach(l => {
@@ -285,9 +290,28 @@ export default function VoiceSearchModal({
         const transcript = event.results?.[0]?.transcript || "";
         if (transcript.trim()) {
           setResultText(transcript.trim());
+          
+          // Reset auto-stop timer on every new result
+          // This gives the user 2 seconds of silence before auto-stopping
+          if (autoStopTimerRef.current) {
+            clearTimeout(autoStopTimerRef.current);
+          }
+          autoStopTimerRef.current = setTimeout(() => {
+            if (stateRef.current === "listening" && resultTextRef.current.trim()) {
+              // Auto-stop after 2 seconds of silence when we have text
+              try { ExpoSpeechRecognitionModule.stop(); } catch (_e) {}
+              stopTimer();
+              stopMicAnimation();
+              setState("success");
+            }
+          }, 2000);
         }
-        // If final result, show success
+        // If final result, show success immediately
         if (event.isFinal && transcript.trim()) {
+          if (autoStopTimerRef.current) {
+            clearTimeout(autoStopTimerRef.current);
+            autoStopTimerRef.current = null;
+          }
           stopTimer();
           stopMicAnimation();
           setState("success");
@@ -329,10 +353,11 @@ export default function VoiceSearchModal({
       listenersRef.current = [startListener, resultListener, errorListener, endListener];
 
       // Start speech recognition with Arabic language
+      // continuous: true to keep listening until user stops or auto-stop kicks in
       ExpoSpeechRecognitionModule.start({
         lang: "ar-EG",
         interimResults: true,
-        continuous: false,
+        continuous: true,
         maxAlternatives: 3,
       });
 
