@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, like, or, gte } from "drizzle-orm";
+import { eq, desc, asc, sql, and, like, or, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users,
@@ -99,19 +99,19 @@ export async function deleteCategory(id: number) {
 export async function getMedicines() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(medicines).where(eq(medicines.isActive, true)).orderBy(medicines.nameAr);
+  return db.select().from(medicines).where(eq(medicines.isActive, true)).orderBy(asc(medicines.nameAr), asc(medicines.nameEn));
 }
 
 export async function getAllMedicines() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(medicines).orderBy(medicines.nameAr);
+  return db.select().from(medicines).orderBy(asc(medicines.nameAr), asc(medicines.nameEn));
 }
 
 export async function getAllMedicinesAdmin() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(medicines).orderBy(medicines.nameAr);
+  return db.select().from(medicines).orderBy(asc(medicines.nameAr), asc(medicines.nameEn));
 }
 
 export async function getMedicinesByCategory(categoryId: number) {

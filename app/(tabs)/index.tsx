@@ -54,7 +54,7 @@ export default function HomeScreen() {
     : selectedCategory !== null
       ? categoryMedicines
       : allMedicines
-  ).slice().sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '', 'ar'));
+  ).slice().sort((a: any, b: any) => (a.nameAr || '').localeCompare(b.nameAr || '', 'ar') || (a.nameEn || '').localeCompare(b.nameEn || '', 'en'));
 
   // Handle voice search result
   const handleVoiceResult = useCallback((text: string) => {
