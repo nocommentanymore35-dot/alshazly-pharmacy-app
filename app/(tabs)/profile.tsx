@@ -22,7 +22,6 @@ export default function ProfileScreen() {
   const [address, setAddress] = useState(state.profile.address);
   const [saving, setSaving] = useState(false);
 
-  const customerMutation = trpc.customers.getOrCreate.useMutation();
   const updateMutation = trpc.customers.update.useMutation();
 
   const ordersQuery = trpc.orders.byCustomer.useQuery(
@@ -36,22 +35,7 @@ export default function ProfileScreen() {
     setAddress(state.profile.address);
   }, [state.profile]);
 
-  // Register customer on mount
-  useEffect(() => {
-    if (state.deviceId && !state.customerId) {
-      customerMutation.mutate(
-        { deviceId: state.deviceId },
-        {
-          onSuccess: (data) => {
-            if (data) {
-              dispatch({ type: "SET_CUSTOMER_ID", payload: data.id });
-              if (data.fullName) setProfile({ fullName: data.fullName, phone: data.phone ?? "", address: data.address ?? "" });
-            }
-          },
-        }
-      );
-    }
-  }, [state.deviceId]);
+  // Customer registration is now handled automatically by CustomerAutoRegister component in _layout.tsx
 
   const handleSave = async () => {
     if (!fullName.trim()) {

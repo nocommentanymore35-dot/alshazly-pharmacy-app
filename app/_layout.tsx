@@ -20,6 +20,7 @@ import type { EdgeInsets, Metrics, Rect } from "react-native-safe-area-context";
 
 import { trpc, createTRPCClient } from "@/lib/trpc";
 import { PushNotificationRegistrar } from "@/components/PushNotificationRegistrar";
+import { CustomerAutoRegister } from "@/components/CustomerAutoRegister";
 import { initManusRuntime, subscribeSafeAreaInsets } from "@/lib/_core/manus-runtime";
 
 const DEFAULT_WEB_INSETS: EdgeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -130,6 +131,7 @@ export default function RootLayout() {
               <Stack.Screen name="order-tracking" options={{ presentation: "card", animation: "slide_from_right", animationDuration: 250 }} />
             </Stack>
             <PushNotificationRegistrar />
+            <CustomerAutoRegister />
             <StatusBar style="dark" backgroundColor="#ffffff" />
           </AppProvider>
         </QueryClientProvider>
