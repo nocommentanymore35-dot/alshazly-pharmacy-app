@@ -293,7 +293,6 @@ function MedicinesManagement() {
   const [stock, setStock] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [descAr, setDescAr] = useState("");
-  const [barcode, setBarcode] = useState("");
 
   const medsQuery = trpc.medicines.listAll.useQuery();
   const catsQuery = trpc.categories.listAll.useQuery();
@@ -306,7 +305,7 @@ function MedicinesManagement() {
 
   const resetForm = () => {
     setNameAr(""); setNameEn(""); setStrips("1"); setPrice(""); setDescAr("");
-    setCategoryId(""); setStock(""); setImageUrl(""); setBarcode(""); setEditId(null); setShowForm(false);
+    setCategoryId(""); setStock(""); setImageUrl(""); setEditId(null); setShowForm(false);
   };
 
   const handleSave = async () => {
@@ -322,7 +321,6 @@ function MedicinesManagement() {
           categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
           strips: parseInt(strips) || 1,
           imageUrl: imageUrl.trim() || undefined,
-          barcode: barcode.trim() || undefined,
         });
       } else {
         await createMutation.mutateAsync({
@@ -331,7 +329,6 @@ function MedicinesManagement() {
           categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
           strips: parseInt(strips) || 1,
           imageUrl: imageUrl.trim() || undefined,
-          barcode: barcode.trim() || undefined,
         });
       }
       medsQuery.refetch();
@@ -352,7 +349,6 @@ function MedicinesManagement() {
     setCategoryId(med.categoryId.toString());
     setStock(med.stock?.toString() ?? "0");
     setImageUrl(med.imageUrl ?? "");
-    setBarcode(med.barcode ?? "");
     setShowForm(true);
   };
 
@@ -404,11 +400,6 @@ function MedicinesManagement() {
           </ScrollView>
 
           <TextInput style={styles.formInput} placeholder="المخزون *" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <MaterialIcons name="qr-code" size={16} color="#6B7280" />
-            <Text style={styles.formLabel}>الباركود (اختياري)</Text>
-          </View>
-          <TextInput style={styles.formInput} placeholder="رقم الباركود الموجود على العبوة" value={barcode} onChangeText={setBarcode} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
           {/* Image Upload Section */}
           <ImagePickerButton
             currentImageUrl={imageUrl}
@@ -444,7 +435,7 @@ function MedicinesManagement() {
             <View style={{ flex: 1 }}>
               <Text style={styles.adminCardTitle}>{med.nameAr}</Text>
               <Text style={styles.adminCardSubtitle}>{med.nameEn}</Text>
-              <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط: {med.strips ?? 1} | مخزون: {med.stock}{med.barcode ? ` | باركود: ${med.barcode}` : ''}</Text>
+              <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط: {med.strips ?? 1} | مخزون: {med.stock}</Text>
               {isBrokenImageUrl(med.imageUrl) && (
                 <Text style={{ fontSize: 10, color: "#DC2626", marginTop: 2 }}>⚠ الصورة مفقودة - اضغط تعديل لإعادة رفعها</Text>
               )}

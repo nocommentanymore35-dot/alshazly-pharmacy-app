@@ -68,7 +68,7 @@ const config: ExpoConfig = {
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: env.androidPackage,
-    permissions: ["POST_NOTIFICATIONS", "RECORD_AUDIO", "CAMERA"],
+    permissions: ["POST_NOTIFICATIONS", "RECORD_AUDIO"],
     intentFilters: [
       {
         action: "VIEW",
@@ -90,12 +90,6 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
-    [
-      "expo-camera",
-      {
-        cameraPermission: "يحتاج التطبيق إلى الوصول إلى الكاميرا لمسح الباركود."
-      }
-    ],
     [
       "expo-notifications",
       {

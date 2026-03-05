@@ -99,19 +99,19 @@ export async function deleteCategory(id: number) {
 export async function getMedicines() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(medicines).where(eq(medicines.isActive, true)).orderBy(desc(medicines.createdAt));
+  return db.select().from(medicines).where(eq(medicines.isActive, true)).orderBy(medicines.nameAr);
 }
 
 export async function getAllMedicines() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(medicines).orderBy(desc(medicines.createdAt));
+  return db.select().from(medicines).orderBy(medicines.nameAr);
 }
 
 export async function getAllMedicinesAdmin() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(medicines).orderBy(desc(medicines.createdAt));
+  return db.select().from(medicines).orderBy(medicines.nameAr);
 }
 
 export async function getMedicinesByCategory(categoryId: number) {

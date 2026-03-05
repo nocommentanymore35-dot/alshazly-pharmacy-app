@@ -73,16 +73,13 @@ export const appRouter = router({
     byId: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(({ input }) => db.getMedicineById(input.id)),
-    byBarcode: publicProcedure
-      .input(z.object({ barcode: z.string() }))
-      .query(({ input }) => db.getMedicineByBarcode(input.barcode)),
     create: publicProcedure
       .input(z.object({
         nameAr: z.string(), nameEn: z.string(),
         descriptionAr: z.string().optional(), descriptionEn: z.string().optional(),
         price: z.string(), imageUrl: z.string().optional(),
         categoryId: z.number(), stock: z.number().optional(),
-        strips: z.number().optional(), barcode: z.string().optional(),
+        strips: z.number().optional(),
       }))
       .mutation(({ input }) => db.createMedicine({ ...input, stock: input.stock ?? 0, strips: input.strips ?? 1 })),
     update: publicProcedure
@@ -92,7 +89,6 @@ export const appRouter = router({
         price: z.string().optional(), imageUrl: z.string().optional(),
         categoryId: z.number().optional(), stock: z.number().optional(),
         strips: z.number().optional(), isActive: z.boolean().optional(),
-        barcode: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
