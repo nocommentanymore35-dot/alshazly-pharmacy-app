@@ -924,9 +924,16 @@ function NotificationsManagement() {
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>الأجهزة المسجلة</Text>
           {tokenCountQuery.data ? (
-            <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-              الإجمالي: {tokenCountQuery.data.total} | العملاء: {tokenCountQuery.data.customers} | الإدارة: {tokenCountQuery.data.admin}
-            </Text>
+            <>
+              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                الإجمالي: {tokenCountQuery.data.total} | العملاء: {tokenCountQuery.data.customers} | الإدارة: {tokenCountQuery.data.admin}
+              </Text>
+              {tokenCountQuery.data.total === 0 && (
+                <Text style={{ fontSize: 11, color: '#DC2626', marginTop: 4 }}>
+                  لم يتم تسجيل أجهزة بعد. يجب أن يفتح العميل التطبيق ويوافق على إذن الإشعارات ليتم تسجيل جهازه.
+                </Text>
+              )}
+            </>
           ) : (
             <ActivityIndicator size="small" />
           )}

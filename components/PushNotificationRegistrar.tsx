@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Platform, Alert } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
@@ -20,7 +20,10 @@ export function PushNotificationRegistrar() {
   const registerMutation = trpc.pushTokens.register.useMutation();
   const { state } = useAppStore();
   const customerId = state.customerId;
+  const deviceId = state.deviceId;
   const isAdminLoggedIn = state.isAdminLoggedIn;
+  const retryCount = useRef(0);
+  const maxRetries = 3;
 
   // Register for push notifications on mount
   useEffect(() => {
@@ -28,7 +31,7 @@ export function PushNotificationRegistrar() {
 
     async function register() {
       try {
-        console.log("[Push] Starting registration...");
+        console.log("[Push] Starting registration... attempt:", retryCount.current + 1);
 
         // Set up Android notification channel
         if (Platform.OS === "android") {
@@ -77,39 +80,45 @@ export function PushNotificationRegistrar() {
         console.log("[Push] Got token:", token);
         setPushToken(token);
 
-        // Register on server
+        // Register on server with all available info
         registerMutation.mutate({
           token,
-          deviceId: undefined,
+          deviceId: deviceId || undefined,
           customerId: customerId || undefined,
           isAdmin: isAdminLoggedIn || false,
         });
 
-        console.log("[Push] Registration complete");
+        console.log("[Push] Registration complete - customerId:", customerId, "deviceId:", deviceId);
       } catch (error) {
         console.error("[Push] Registration error:", error);
+        // Retry after delay
+        retryCount.current += 1;
+        if (retryCount.current < maxRetries) {
+          console.log("[Push] Will retry in 5 seconds...");
+          setTimeout(register, 5000);
+        }
       }
     }
 
-    // Small delay to ensure app is ready
-    const timer = setTimeout(register, 1500);
+    // Small delay to ensure app is ready and customerId/deviceId are loaded
+    const timer = setTimeout(register, 2000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [deviceId]);
 
-  // Re-register when admin logs in or customer changes
+  // Re-register when admin logs in, customer changes, or token is available
   useEffect(() => {
     if (Platform.OS === "web") return;
     if (!pushToken) return;
 
-    console.log("[Push] Re-registering - isAdmin:", isAdminLoggedIn, "customerId:", customerId);
+    console.log("[Push] Re-registering - isAdmin:", isAdminLoggedIn, "customerId:", customerId, "deviceId:", deviceId);
 
     registerMutation.mutate({
       token: pushToken,
-      deviceId: undefined,
+      deviceId: deviceId || undefined,
       customerId: customerId || undefined,
       isAdmin: isAdminLoggedIn || false,
     });
-  }, [isAdminLoggedIn, customerId]);
+  }, [isAdminLoggedIn, customerId, pushToken]);
 
   // Listen for notifications
   useEffect(() => {
