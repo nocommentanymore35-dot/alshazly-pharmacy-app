@@ -36,6 +36,7 @@ export const medicines = mysqlTable("medicines", {
   categoryId: int("categoryId").notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   stock: int("stock").default(0).notNull(),
+  barcode: varchar("barcode", { length: 100 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -116,6 +117,15 @@ export const pushTokens = mysqlTable("push_tokens", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+// Stock Alerts table (notify customer when medicine is back in stock)
+export const stockAlerts = mysqlTable("stock_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  medicineId: int("medicineId").notNull(),
+  deviceId: varchar("deviceId", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
 // App settings table (for loyalty program toggle, etc.)
 export const appSettings = mysqlTable("app_settings", {
   id: int("id").autoincrement().primaryKey(),
@@ -147,3 +157,5 @@ export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = typeof appSettings.$inferInsert;
 export type PushToken = typeof pushTokens.$inferSelect;
 export type InsertPushToken = typeof pushTokens.$inferInsert;
+export type StockAlert = typeof stockAlerts.$inferSelect;
+export type InsertStockAlert = typeof stockAlerts.$inferInsert;

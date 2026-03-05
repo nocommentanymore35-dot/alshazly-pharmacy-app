@@ -75,6 +75,14 @@ async function startServer() {
 
   server.listen(port, "0.0.0.0", () => {
     console.log(`[api] Al-Shazly Pharmacy server listening on port ${port}`);
+    
+    // Start daily automatic backup scheduler
+    try {
+      const { startDailyBackup } = require("../backup");
+      startDailyBackup();
+    } catch (e) {
+      console.warn("[Backup] Failed to start daily backup scheduler:", e);
+    }
   });
 }
 

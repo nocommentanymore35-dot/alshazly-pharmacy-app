@@ -5,6 +5,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useAppStore, CartItem, calcItemTotal, getUnitLabel, getPricePerUnit } from "@/lib/store";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import Animated, { FadeInDown, FadeInUp, SlideInDown, Layout } from "react-native-reanimated";
 
 export default function CartScreen() {
   const router = useRouter();
@@ -37,7 +38,7 @@ export default function CartScreen() {
     router.push("/checkout" as any);
   };
 
-  const renderCartItem = ({ item }: { item: CartItem }) => {
+  const renderCartItem = ({ item, index }: { item: CartItem; index: number }) => {
     const unitType = item.unitType || "box";
     const stripsPerBox = item.stripsPerBox || 1;
     const unitPrice = getPricePerUnit(item.price, stripsPerBox, unitType);
@@ -45,7 +46,7 @@ export default function CartScreen() {
     const unitLabel = getUnitLabel(unitType, item.quantity);
 
     return (
-      <View style={styles.cartItem}>
+      <Animated.View entering={FadeInDown.delay(index * 80).duration(400).springify()} layout={Layout.springify()} style={styles.cartItem}>
         {item.imageUrl && !item.imageUrl.includes('railway.app/uploads/') ? (
           <Image source={{ uri: item.imageUrl }} style={styles.itemImage} contentFit="cover" />
         ) : (
@@ -74,7 +75,7 @@ export default function CartScreen() {
         >
           <MaterialIcons name="delete" size={22} color="#DC2626" />
         </Pressable>
-      </View>
+      </Animated.View>
     );
   };
 
@@ -115,7 +116,7 @@ export default function CartScreen() {
             />
 
             {/* Bottom Total & Checkout */}
-            <View style={styles.bottomBar}>
+            <Animated.View entering={SlideInDown.delay(200).duration(500).springify()} style={styles.bottomBar}>
               <View style={styles.totalSection}>
                 <Text style={styles.totalLabel}>الإجمالي</Text>
                 <Text style={styles.totalAmount}>{cartTotal().toFixed(2)} ج.م</Text>
@@ -127,7 +128,7 @@ export default function CartScreen() {
                 <Text style={styles.checkoutText}>تأكيد الطلب</Text>
                 <MaterialIcons name="arrow-back" size={20} color="#fff" />
               </Pressable>
-            </View>
+            </Animated.View>
           </>
         )}
       </View>

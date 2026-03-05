@@ -121,13 +121,13 @@ export default function RootLayout() {
       <trpc.Provider client={trpcClient} queryClient={queryClient}>
         <QueryClientProvider client={queryClient}>
           <AppProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="(tabs)" />
+            <Stack screenOptions={{ headerShown: false, animation: "slide_from_right", animationDuration: 250 }}>
+              <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
               <Stack.Screen name="oauth/callback" />
-              <Stack.Screen name="medicine/[id]" options={{ presentation: "card" }} />
-              <Stack.Screen name="checkout" options={{ presentation: "modal" }} />
-              <Stack.Screen name="banner/[id]" options={{ presentation: "card" }} />
-              <Stack.Screen name="order-tracking" options={{ presentation: "card" }} />
+              <Stack.Screen name="medicine/[id]" options={{ presentation: "card", animation: "slide_from_bottom", animationDuration: 300 }} />
+              <Stack.Screen name="checkout" options={{ presentation: "modal", animation: "slide_from_bottom", animationDuration: 300 }} />
+              <Stack.Screen name="banner/[id]" options={{ presentation: "card", animation: "slide_from_right", animationDuration: 250 }} />
+              <Stack.Screen name="order-tracking" options={{ presentation: "card", animation: "slide_from_right", animationDuration: 250 }} />
             </Stack>
             <PushNotificationRegistrar />
             <StatusBar style="dark" backgroundColor="#ffffff" />

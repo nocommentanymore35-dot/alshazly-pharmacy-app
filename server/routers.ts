@@ -73,13 +73,16 @@ export const appRouter = router({
     byId: publicProcedure
       .input(z.object({ id: z.number() }))
       .query(({ input }) => db.getMedicineById(input.id)),
+    byBarcode: publicProcedure
+      .input(z.object({ barcode: z.string() }))
+      .query(({ input }) => db.getMedicineByBarcode(input.barcode)),
     create: publicProcedure
       .input(z.object({
         nameAr: z.string(), nameEn: z.string(),
         descriptionAr: z.string().optional(), descriptionEn: z.string().optional(),
         price: z.string(), imageUrl: z.string().optional(),
         categoryId: z.number(), stock: z.number().optional(),
-        strips: z.number().optional(),
+        strips: z.number().optional(), barcode: z.string().optional(),
       }))
       .mutation(({ input }) => db.createMedicine({ ...input, stock: input.stock ?? 0, strips: input.strips ?? 1 })),
     update: publicProcedure
@@ -89,8 +92,37 @@ export const appRouter = router({
         price: z.string().optional(), imageUrl: z.string().optional(),
         categoryId: z.number().optional(), stock: z.number().optional(),
         strips: z.number().optional(), isActive: z.boolean().optional(),
+        barcode: z.string().optional(),
       }))
-      .mutation(async ({ input }) => { const { id, ...data } = input; const result = await db.updateMedicine(id, data); invalidateSearchCache(); return result; }),
+      .mutation(async ({ input }) => {
+        const { id, ...data } = input;
+        
+        // Check if stock is being updated from 0 to > 0 (back in stock)
+        if (data.stock !== undefined && data.stock > 0) {
+          const currentMedicine = await db.getMedicineById(id);
+          if (currentMedicine && currentMedicine.stock === 0) {
+            // Medicine is back in stock! Notify customers who registered for alerts
+            try {
+              const alertTokens = await db.getStockAlertCustomerTokens(id);
+              if (alertTokens.length > 0) {
+                const { sendPushNotifications } = await import("./pushNotifications");
+                await sendPushNotifications(
+                  alertTokens,
+                  `${currentMedicine.nameAr} أصبح متوفراً!`,
+                  `الصنف ${currentMedicine.nameAr} (${currentMedicine.nameEn}) عاد للمخزون. اطلبه الآن!`,
+                  { type: "stock_alert", medicineId: id.toString() }
+                );
+              }
+              // Clear alerts after sending notifications
+              await db.clearStockAlertsForMedicine(id);
+            } catch (e) { console.warn("Failed to send stock alert notifications:", e); }
+          }
+        }
+        
+        const result = await db.updateMedicine(id, data);
+        invalidateSearchCache();
+        return result;
+      }),
     delete: publicProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input }) => { const result = await db.deleteMedicine(input.id); invalidateSearchCache(); return result; }),
@@ -338,6 +370,106 @@ export const appRouter = router({
     remove: publicProcedure
       .input(z.object({ token: z.string() }))
       .mutation(({ input }) => db.removePushToken(input.token)),
+    // Get registered device count
+    count: publicProcedure.query(() => db.getPushTokenCount()),
+    // Send broadcast notification to all users or customers only
+    sendBroadcast: publicProcedure
+      .input(z.object({
+        title: z.string().min(1, "عنوان الإشعار مطلوب"),
+        body: z.string().min(1, "محتوى الإشعار مطلوب"),
+        target: z.enum(["all", "customers", "admin"]).default("all"),
+      }))
+      .mutation(async ({ input }) => {
+        const { sendPushNotifications } = await import("./pushNotifications");
+        let tokens: string[] = [];
+        if (input.target === "all") {
+          tokens = await db.getAllPushTokens();
+        } else if (input.target === "customers") {
+          tokens = await db.getCustomerOnlyPushTokens();
+        } else if (input.target === "admin") {
+          tokens = await db.getAdminPushTokens();
+        }
+        if (tokens.length === 0) {
+          return { success: false, sent: 0, message: "لا يوجد أجهزة مسجلة لاستقبال الإشعارات" };
+        }
+        await sendPushNotifications(tokens, input.title, input.body, { type: "broadcast" });
+        return { success: true, sent: tokens.length, message: `تم إرسال الإشعار إلى ${tokens.length} جهاز` };
+      }),
+  }),
+
+  // Stock Alerts (Notify When Available)
+  stockAlerts: router({
+    // Register alert - customer wants notification when medicine is back in stock
+    register: publicProcedure
+      .input(z.object({ customerId: z.number(), medicineId: z.number(), deviceId: z.string().optional() }))
+      .mutation(async ({ input }) => {
+        const result = await db.registerStockAlert(input.customerId, input.medicineId, input.deviceId);
+        if (result.alreadyRegistered) {
+          return { success: true, message: "أنت مسجل بالفعل لاستقبال إشعار عند توفر هذا الصنف" };
+        }
+        return { success: true, message: "سيتم إعلامك عند توفر هذا الصنف" };
+      }),
+    // Remove alert
+    remove: publicProcedure
+      .input(z.object({ customerId: z.number(), medicineId: z.number() }))
+      .mutation(async ({ input }) => {
+        await db.removeStockAlert(input.customerId, input.medicineId);
+        return { success: true };
+      }),
+    // Check if customer has alert for a medicine
+    check: publicProcedure
+      .input(z.object({ customerId: z.number(), medicineId: z.number() }))
+      .query(({ input }) => db.hasStockAlert(input.customerId, input.medicineId)),
+    // Get alert count for a medicine (admin)
+    count: publicProcedure
+      .input(z.object({ medicineId: z.number() }))
+      .query(({ input }) => db.getStockAlertCount(input.medicineId)),
+  }),
+
+  // Database Backup
+  backup: router({
+    // Create manual backup
+    create: publicProcedure.mutation(async () => {
+      const { performAutoBackup } = await import("./backup");
+      const result = await performAutoBackup();
+      if (!result.success) throw new Error(result.error || "فشل إنشاء النسخة الاحتياطية");
+      return { success: true, url: result.url, message: "تم إنشاء النسخة الاحتياطية بنجاح" };
+    }),
+    // List available backups
+    list: publicProcedure.query(async () => {
+      const { listBackups } = await import("./backup");
+      return listBackups();
+    }),
+    // Export data as JSON (download)
+    export: publicProcedure.query(async () => {
+      const { exportAllData } = await import("./backup");
+      const data = await exportAllData();
+      const totalRecords = Object.values(data.tables).reduce((sum, arr) => sum + arr.length, 0);
+      return {
+        data,
+        summary: {
+          timestamp: data.timestamp,
+          totalRecords,
+          tables: Object.entries(data.tables).map(([name, rows]) => ({ name, count: rows.length })),
+        },
+      };
+    }),
+    // Restore from backup URL
+    restore: publicProcedure
+      .input(z.object({ url: z.string() }))
+      .mutation(async ({ input }) => {
+        const { downloadBackup, restoreFromBackup } = await import("./backup");
+        const data = await downloadBackup(input.url);
+        const result = await restoreFromBackup(data);
+        return {
+          success: true,
+          restored: result.restored,
+          errors: result.errors,
+          message: result.errors.length > 0
+            ? `تم استعادة البيانات مع ${result.errors.length} أخطاء`
+            : "تم استعادة جميع البيانات بنجاح",
+        };
+      }),
   }),
 
   // File Upload

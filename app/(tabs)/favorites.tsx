@@ -5,6 +5,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useAppStore, FavoriteItem } from "@/lib/store";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import Animated, { FadeInDown, FadeInUp, Layout } from "react-native-reanimated";
 
 export default function FavoritesScreen() {
   const router = useRouter();
@@ -17,7 +18,8 @@ export default function FavoritesScreen() {
     router.push(`/medicine/${item.medicineId}` as any);
   };
 
-  const renderFavoriteItem = ({ item }: { item: FavoriteItem }) => (
+  const renderFavoriteItem = ({ item, index }: { item: FavoriteItem; index: number }) => (
+    <Animated.View entering={FadeInDown.delay(index * 80).duration(400).springify()} layout={Layout.springify()}>
     <Pressable
       onPress={() => router.push(`/medicine/${item.medicineId}` as any)}
       style={({ pressed }) => [styles.favItem, pressed && { opacity: 0.9 }]}
@@ -53,6 +55,7 @@ export default function FavoritesScreen() {
         </Pressable>
       </View>
     </Pressable>
+    </Animated.View>
   );
 
   return (

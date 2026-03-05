@@ -12,6 +12,7 @@ import {
   searchLogs, InsertSearchLog,
   appSettings, InsertAppSetting,
   pushTokens, InsertPushToken,
+  stockAlerts, InsertStockAlert,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -331,6 +332,13 @@ export async function getMedicineById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(medicines).where(eq(medicines.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getMedicineByBarcode(barcode: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(medicines).where(eq(medicines.barcode, barcode)).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -757,6 +765,31 @@ export async function removePushToken(token: string) {
   await db.delete(pushTokens).where(eq(pushTokens.token, token));
 }
 
+// Get all push tokens (for broadcast notifications)
+export async function getAllPushTokens(): Promise<string[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const results = await db.select({ token: pushTokens.token }).from(pushTokens);
+  return results.map(r => r.token);
+}
+
+// Get customer-only push tokens (exclude admin)
+export async function getCustomerOnlyPushTokens(): Promise<string[]> {
+  const db = await getDb();
+  if (!db) return [];
+  const results = await db.select({ token: pushTokens.token }).from(pushTokens).where(eq(pushTokens.isAdmin, false));
+  return results.map(r => r.token);
+}
+
+// Get push token count
+export async function getPushTokenCount(): Promise<{ total: number; admin: number; customers: number }> {
+  const db = await getDb();
+  if (!db) return { total: 0, admin: 0, customers: 0 };
+  const all = await db.select({ token: pushTokens.token }).from(pushTokens);
+  const admins = await db.select({ token: pushTokens.token }).from(pushTokens).where(eq(pushTokens.isAdmin, true));
+  return { total: all.length, admin: admins.length, customers: all.length - admins.length };
+}
+
 // ===== MOST ORDERED (POPULAR) MEDICINES =====
 export async function getMostOrderedMedicines(limit: number = 10) {
   const db = await getDb();
@@ -833,4 +866,88 @@ export async function getDailyOrdersReport(date?: Date) {
     orders: dayOrders,
     topItems,
   };
+}
+
+// ===== STOCK ALERTS (Notify When Available) =====
+
+// Register a stock alert - customer wants to be notified when medicine is back in stock
+export async function registerStockAlert(customerId: number, medicineId: number, deviceId?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  // Check if already registered
+  const existing = await db.select().from(stockAlerts)
+    .where(and(eq(stockAlerts.customerId, customerId), eq(stockAlerts.medicineId, medicineId)))
+    .limit(1);
+  
+  if (existing.length > 0) {
+    return { alreadyRegistered: true };
+  }
+  
+  await db.insert(stockAlerts).values({ customerId, medicineId, deviceId: deviceId ?? null });
+  return { alreadyRegistered: false };
+}
+
+// Remove a stock alert
+export async function removeStockAlert(customerId: number, medicineId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(stockAlerts).where(and(eq(stockAlerts.customerId, customerId), eq(stockAlerts.medicineId, medicineId)));
+}
+
+// Check if customer has a stock alert for a medicine
+export async function hasStockAlert(customerId: number, medicineId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const result = await db.select().from(stockAlerts)
+    .where(and(eq(stockAlerts.customerId, customerId), eq(stockAlerts.medicineId, medicineId)))
+    .limit(1);
+  return result.length > 0;
+}
+
+// Get all stock alerts for a specific medicine (to notify when back in stock)
+export async function getStockAlertsForMedicine(medicineId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(stockAlerts).where(eq(stockAlerts.medicineId, medicineId));
+}
+
+// Delete all stock alerts for a medicine (after sending notifications)
+export async function clearStockAlertsForMedicine(medicineId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.delete(stockAlerts).where(eq(stockAlerts.medicineId, medicineId));
+}
+
+// Get customer push tokens for stock alert notifications
+export async function getStockAlertCustomerTokens(medicineId: number): Promise<string[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  // Get customer IDs who registered for this alert
+  const alerts = await db.select({ customerId: stockAlerts.customerId }).from(stockAlerts)
+    .where(eq(stockAlerts.medicineId, medicineId));
+  
+  if (alerts.length === 0) return [];
+  
+  const customerIds = alerts.map(a => a.customerId);
+  
+  // Get push tokens for these customers
+  const tokens: string[] = [];
+  for (const cid of customerIds) {
+    const results = await db.select({ token: pushTokens.token }).from(pushTokens)
+      .where(eq(pushTokens.customerId, cid));
+    tokens.push(...results.map(r => r.token));
+  }
+  
+  return tokens;
+}
+
+// Get stock alert count for a medicine
+export async function getStockAlertCount(medicineId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`COUNT(*)` }).from(stockAlerts)
+    .where(eq(stockAlerts.medicineId, medicineId));
+  return result[0]?.count || 0;
 }

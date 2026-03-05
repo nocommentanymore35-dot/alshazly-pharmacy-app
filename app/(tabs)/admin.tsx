@@ -11,7 +11,7 @@ import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import ImagePickerButton from "@/components/ImagePickerButton";
 
-type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "settings";
+type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "notifications" | "settings";
 
 // Helper: check if image URL is broken (old local URL that no longer exists)
 function isBrokenImageUrl(url: string | null | undefined): boolean {
@@ -147,6 +147,7 @@ export default function AdminScreen() {
             { key: "banners", label: "الإعلانات", icon: "campaign" },
             { key: "reports", label: "التقارير", icon: "bar-chart" },
             { key: "customers", label: "العملاء", icon: "people" },
+            { key: "notifications", label: "الإشعارات", icon: "notifications" },
             { key: "settings", label: "الإعدادات", icon: "settings" },
           ].map((tab) => (
             <Pressable
@@ -171,6 +172,7 @@ export default function AdminScreen() {
           {activeTab === "banners" && <BannersManagement />}
           {activeTab === "reports" && <ReportsView />}
           {activeTab === "customers" && <CustomersManagement />}
+          {activeTab === "notifications" && <NotificationsManagement />}
           {activeTab === "settings" && <SettingsManagement />}
         </View>
       </View>
@@ -291,6 +293,7 @@ function MedicinesManagement() {
   const [stock, setStock] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [descAr, setDescAr] = useState("");
+  const [barcode, setBarcode] = useState("");
 
   const medsQuery = trpc.medicines.listAll.useQuery();
   const catsQuery = trpc.categories.listAll.useQuery();
@@ -303,7 +306,7 @@ function MedicinesManagement() {
 
   const resetForm = () => {
     setNameAr(""); setNameEn(""); setStrips("1"); setPrice(""); setDescAr("");
-    setCategoryId(""); setStock(""); setImageUrl(""); setEditId(null); setShowForm(false);
+    setCategoryId(""); setStock(""); setImageUrl(""); setBarcode(""); setEditId(null); setShowForm(false);
   };
 
   const handleSave = async () => {
@@ -319,6 +322,7 @@ function MedicinesManagement() {
           categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
           strips: parseInt(strips) || 1,
           imageUrl: imageUrl.trim() || undefined,
+          barcode: barcode.trim() || undefined,
         });
       } else {
         await createMutation.mutateAsync({
@@ -327,6 +331,7 @@ function MedicinesManagement() {
           categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
           strips: parseInt(strips) || 1,
           imageUrl: imageUrl.trim() || undefined,
+          barcode: barcode.trim() || undefined,
         });
       }
       medsQuery.refetch();
@@ -347,6 +352,7 @@ function MedicinesManagement() {
     setCategoryId(med.categoryId.toString());
     setStock(med.stock?.toString() ?? "0");
     setImageUrl(med.imageUrl ?? "");
+    setBarcode(med.barcode ?? "");
     setShowForm(true);
   };
 
@@ -398,6 +404,11 @@ function MedicinesManagement() {
           </ScrollView>
 
           <TextInput style={styles.formInput} placeholder="المخزون *" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <MaterialIcons name="qr-code" size={16} color="#6B7280" />
+            <Text style={styles.formLabel}>الباركود (اختياري)</Text>
+          </View>
+          <TextInput style={styles.formInput} placeholder="رقم الباركود الموجود على العبوة" value={barcode} onChangeText={setBarcode} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
           {/* Image Upload Section */}
           <ImagePickerButton
             currentImageUrl={imageUrl}
@@ -433,7 +444,7 @@ function MedicinesManagement() {
             <View style={{ flex: 1 }}>
               <Text style={styles.adminCardTitle}>{med.nameAr}</Text>
               <Text style={styles.adminCardSubtitle}>{med.nameEn}</Text>
-              <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط: {med.strips ?? 1} | مخزون: {med.stock}</Text>
+              <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط: {med.strips ?? 1} | مخزون: {med.stock}{med.barcode ? ` | باركود: ${med.barcode}` : ''}</Text>
               {isBrokenImageUrl(med.imageUrl) && (
                 <Text style={{ fontSize: 10, color: "#DC2626", marginTop: 2 }}>⚠ الصورة مفقودة - اضغط تعديل لإعادة رفعها</Text>
               )}
@@ -856,6 +867,166 @@ function CustomersManagement() {
   );
 }
 
+// ===== Notifications Management =====
+function NotificationsManagement() {
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifBody, setNotifBody] = useState('');
+  const [notifTarget, setNotifTarget] = useState<'all' | 'customers' | 'admin'>('customers');
+  const [sending, setSending] = useState(false);
+  const [lastResult, setLastResult] = useState<string | null>(null);
+
+  const sendBroadcastMutation = trpc.pushTokens.sendBroadcast.useMutation();
+  const tokenCountQuery = trpc.pushTokens.count.useQuery();
+
+  const handleSend = async () => {
+    if (!notifTitle.trim() || !notifBody.trim()) {
+      Alert.alert('خطأ', 'يرجى إدخال عنوان ومحتوى الإشعار');
+      return;
+    }
+    Alert.alert(
+      'تأكيد الإرسال',
+      `هل تريد إرسال هذا الإشعار إلى ${notifTarget === 'all' ? 'الجميع' : notifTarget === 'customers' ? 'العملاء فقط' : 'الإدارة فقط'}?`,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'إرسال',
+          onPress: async () => {
+            setSending(true);
+            setLastResult(null);
+            try {
+              const result = await sendBroadcastMutation.mutateAsync({
+                title: notifTitle.trim(),
+                body: notifBody.trim(),
+                target: notifTarget,
+              });
+              setLastResult(result.message);
+              if (result.success) {
+                setNotifTitle('');
+                setNotifBody('');
+                Alert.alert('نجاح', result.message);
+              } else {
+                Alert.alert('تنبيه', result.message);
+              }
+            } catch (e: any) {
+              Alert.alert('خطأ', e.message || 'فشل إرسال الإشعار');
+            }
+            setSending(false);
+          },
+        },
+      ]
+    );
+  };
+
+  const targetOptions = [
+    { key: 'customers' as const, label: 'العملاء فقط', icon: 'people' },
+    { key: 'all' as const, label: 'الجميع', icon: 'public' },
+    { key: 'admin' as const, label: 'الإدارة', icon: 'admin-panel-settings' },
+  ];
+
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, gap: 12 }}>
+      {/* Device Count */}
+      <View style={{ backgroundColor: '#EFF6FF', borderRadius: 10, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <MaterialIcons name="devices" size={24} color="#2563EB" />
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>الأجهزة المسجلة</Text>
+          {tokenCountQuery.data ? (
+            <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+              الإجمالي: {tokenCountQuery.data.total} | العملاء: {tokenCountQuery.data.customers} | الإدارة: {tokenCountQuery.data.admin}
+            </Text>
+          ) : (
+            <ActivityIndicator size="small" />
+          )}
+        </View>
+      </View>
+
+      {/* Target Selection */}
+      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>إرسال إلى:</Text>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {targetOptions.map((opt) => (
+          <Pressable
+            key={opt.key}
+            onPress={() => setNotifTarget(opt.key)}
+            style={{
+              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+              gap: 4, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5,
+              borderColor: notifTarget === opt.key ? '#2563EB' : '#E5E7EB',
+              backgroundColor: notifTarget === opt.key ? '#EFF6FF' : '#fff',
+            }}
+          >
+            <MaterialIcons name={opt.icon as any} size={16} color={notifTarget === opt.key ? '#2563EB' : '#6B7280'} />
+            <Text style={{ fontSize: 12, fontWeight: '600', color: notifTarget === opt.key ? '#2563EB' : '#6B7280' }}>{opt.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Notification Title */}
+      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>عنوان الإشعار:</Text>
+      <TextInput
+        value={notifTitle}
+        onChangeText={setNotifTitle}
+        placeholder="مثل: عرض خاص اليوم!"
+        style={{
+          borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8,
+          padding: 12, fontSize: 14, backgroundColor: '#fff', textAlign: 'right',
+        }}
+      />
+
+      {/* Notification Body */}
+      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>محتوى الإشعار:</Text>
+      <TextInput
+        value={notifBody}
+        onChangeText={setNotifBody}
+        placeholder="اكتب نص الإشعار هنا..."
+        multiline
+        numberOfLines={4}
+        style={{
+          borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8,
+          padding: 12, fontSize: 14, backgroundColor: '#fff', textAlign: 'right',
+          minHeight: 100, textAlignVertical: 'top',
+        }}
+      />
+
+      {/* Send Button */}
+      <Pressable
+        onPress={handleSend}
+        disabled={sending}
+        style={({ pressed }) => [{
+          backgroundColor: sending ? '#93C5FD' : '#2563EB',
+          borderRadius: 10, paddingVertical: 14, flexDirection: 'row',
+          alignItems: 'center', justifyContent: 'center', gap: 8,
+        }, pressed && { opacity: 0.8 }]}
+      >
+        {sending ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <MaterialIcons name="send" size={20} color="#fff" />
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>إرسال الإشعار</Text>
+          </>
+        )}
+      </Pressable>
+
+      {/* Last Result */}
+      {lastResult && (
+        <View style={{ backgroundColor: '#F0FDF4', borderRadius: 8, padding: 12, borderWidth: 1, borderColor: '#BBF7D0' }}>
+          <Text style={{ fontSize: 13, color: '#166534', textAlign: 'center' }}>{lastResult}</Text>
+        </View>
+      )}
+
+      {/* Tips */}
+      <View style={{ backgroundColor: '#FFF7ED', borderRadius: 10, padding: 14, marginTop: 8, borderWidth: 1, borderColor: '#FED7AA' }}>
+        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#9A3412', marginBottom: 6 }}>نصائح:</Text>
+        <Text style={{ fontSize: 12, color: '#9A3412', lineHeight: 20 }}>
+          • الإشعار يظهر على هواتف العملاء حتى لو التطبيق مغلق{"\n"}
+          • استخدم عناوين قصيرة وجذابة{"\n"}
+          • لا ترسل إشعارات كثيرة حتى لا يقوم العملاء بإيقافها
+        </Text>
+      </View>
+    </ScrollView>
+  );
+}
+
 // ===== Settings Management =====
 function SettingsManagement() {
   const changePasswordMutation = trpc.admin.changePassword.useMutation();
@@ -945,8 +1116,146 @@ function SettingsManagement() {
         </Pressable>
       </View>
 
+      {/* Database Backup Section */}
+      <BackupManagement />
+
       <View style={{ height: 100 }} />
     </ScrollView>
+  );
+}
+
+// ===== Backup Management =====
+function BackupManagement() {
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [restoreLoading, setRestoreLoading] = useState(false);
+  const [showBackups, setShowBackups] = useState(false);
+  
+  const createBackupMutation = trpc.backup.create.useMutation();
+  const backupsQuery = trpc.backup.list.useQuery(undefined, { enabled: showBackups });
+  const restoreMutation = trpc.backup.restore.useMutation();
+
+  const handleCreateBackup = async () => {
+    setBackupLoading(true);
+    try {
+      const result = await createBackupMutation.mutateAsync();
+      Alert.alert("تم", result.message);
+      if (showBackups) backupsQuery.refetch();
+    } catch (e: any) {
+      Alert.alert("خطأ", e.message || "فشل إنشاء النسخة الاحتياطية");
+    }
+    setBackupLoading(false);
+  };
+
+  const handleRestore = async (url: string, date: string) => {
+    Alert.alert(
+      "استعادة البيانات",
+      `هل تريد استعادة البيانات من نسخة ${new Date(date).toLocaleDateString('ar-EG')}\n\nتحذير: سيتم دمج البيانات مع البيانات الحالية`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        {
+          text: "استعادة",
+          style: "destructive",
+          onPress: async () => {
+            setRestoreLoading(true);
+            try {
+              const result = await restoreMutation.mutateAsync({ url });
+              Alert.alert("تم", result.message + "\n\n" + result.restored.join("\n"));
+            } catch (e: any) {
+              Alert.alert("خطأ", e.message || "فشل استعادة البيانات");
+            }
+            setRestoreLoading(false);
+          },
+        },
+      ]
+    );
+  };
+
+  const backups = backupsQuery.data ?? [];
+
+  return (
+    <View style={[styles.adminCard, { marginTop: 12 }]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Pressable
+          onPress={() => setShowBackups(!showBackups)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+        >
+          <MaterialIcons name={showBackups ? "expand-less" : "expand-more"} size={20} color="#6B7280" />
+          <Text style={{ fontSize: 12, color: '#6B7280' }}>
+            {showBackups ? 'إخفاء النسخ' : 'عرض النسخ'}
+          </Text>
+        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Text style={styles.adminCardTitle}>النسخ الاحتياطي</Text>
+          <MaterialIcons name="backup" size={22} color="#2563EB" />
+        </View>
+      </View>
+      <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 4, marginBottom: 12, textAlign: 'right' }}>
+        يتم عمل نسخة احتياطية تلقائية يومياً وتُحفظ على Cloudinary
+      </Text>
+
+      {/* Manual Backup Button */}
+      <Pressable
+        onPress={handleCreateBackup}
+        disabled={backupLoading}
+        style={({ pressed }) => [{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+          backgroundColor: '#059669', borderRadius: 8, paddingVertical: 12,
+          opacity: backupLoading ? 0.6 : 1,
+        }, pressed && { opacity: 0.8 }]}
+      >
+        {backupLoading ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <>
+            <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>إنشاء نسخة احتياطية الآن</Text>
+            <MaterialIcons name="cloud-upload" size={20} color="#fff" />
+          </>
+        )}
+      </Pressable>
+
+      {/* Backup List */}
+      {showBackups && (
+        <View style={{ marginTop: 12 }}>
+          {backupsQuery.isLoading ? (
+            <ActivityIndicator size="small" color="#2563EB" style={{ marginVertical: 12 }} />
+          ) : backups.length === 0 ? (
+            <Text style={{ fontSize: 13, color: '#9CA3AF', textAlign: 'center', marginVertical: 12 }}>
+              لا توجد نسخ احتياطية بعد
+            </Text>
+          ) : (
+            backups.map((backup: any, idx: number) => (
+              <View key={idx} style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                paddingVertical: 8, borderBottomWidth: idx < backups.length - 1 ? 1 : 0,
+                borderBottomColor: '#F3F4F6',
+              }}>
+                <Pressable
+                  onPress={() => handleRestore(backup.url, backup.createdAt)}
+                  disabled={restoreLoading}
+                  style={({ pressed }) => [{
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                    backgroundColor: '#F59E0B', paddingHorizontal: 10, paddingVertical: 5,
+                    borderRadius: 6, opacity: restoreLoading ? 0.5 : 1,
+                  }, pressed && { opacity: 0.7 }]}
+                >
+                  <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>استعادة</Text>
+                  <MaterialIcons name="restore" size={14} color="#fff" />
+                </Pressable>
+                <View style={{ alignItems: 'flex-end', flex: 1, marginLeft: 8 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#1F2937' }}>
+                    {new Date(backup.createdAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#6B7280' }}>
+                    {new Date(backup.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                    {backup.size ? ` - ${(backup.size / 1024).toFixed(1)} KB` : ''}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      )}
+    </View>
   );
 }
 

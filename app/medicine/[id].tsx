@@ -8,6 +8,8 @@ import { useAppStore, UnitType, getPricePerUnit, getUnitLabel } from "@/lib/stor
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeInDown, FadeInUp, FadeIn, ZoomIn, SlideInDown } from "react-native-reanimated";
+import { BounceButton, CartSuccessAnimation, FadeSlideSection } from "@/components/AnimatedComponents";
 
 export default function MedicineDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,6 +23,40 @@ export default function MedicineDetailScreen() {
 
   const medicineQuery = trpc.medicines.byId.useQuery({ id: parseInt(id) });
   const medicine = medicineQuery.data;
+  const { state: { customerId } } = useAppStore();
+  
+  // Stock alert
+  const [alertRegistered, setAlertRegistered] = useState(false);
+  const [alertLoading, setAlertLoading] = useState(false);
+  const stockAlertCheck = trpc.stockAlerts.check.useQuery(
+    { customerId: customerId ?? 0, medicineId: parseInt(id) },
+    { enabled: !!customerId && !!medicine && (medicine.stock ?? 0) <= 0 }
+  );
+  const registerAlertMutation = trpc.stockAlerts.register.useMutation();
+  const removeAlertMutation = trpc.stockAlerts.remove.useMutation();
+  
+  const handleStockAlert = async () => {
+    if (!customerId) {
+      Alert.alert('تنبيه', 'يرجى تسجيل الدخول أولاً');
+      return;
+    }
+    setAlertLoading(true);
+    try {
+      if (alertRegistered || stockAlertCheck.data) {
+        await removeAlertMutation.mutateAsync({ customerId, medicineId: parseInt(id) });
+        setAlertRegistered(false);
+        stockAlertCheck.refetch();
+        Alert.alert('تم', 'تم إلغاء التنبيه');
+      } else {
+        const result = await registerAlertMutation.mutateAsync({ customerId, medicineId: parseInt(id) });
+        setAlertRegistered(true);
+        Alert.alert('تم', result.message);
+      }
+    } catch (e: any) {
+      Alert.alert('خطأ', e.message || 'حدث خطأ');
+    }
+    setAlertLoading(false);
+  };
 
   if (medicineQuery.isLoading) {
     return (
@@ -115,8 +151,8 @@ export default function MedicineDetailScreen() {
         </View>
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-          {/* Image */}
-          <View>
+          {/* Image with fade animation */}
+          <Animated.View entering={FadeIn.duration(500)}>
             {medicine.imageUrl && !medicine.imageUrl.includes('railway.app/uploads/') ? (
               <Image source={{ uri: medicine.imageUrl }} style={styles.image} contentFit="cover" />
             ) : (
@@ -136,10 +172,10 @@ export default function MedicineDetailScreen() {
                 {(medicine.stock ?? 0) > 0 ? "متوفر" : "غير متوفر"}
               </Text>
             </View>
-          </View>
+          </Animated.View>
 
-          {/* Info */}
-          <View style={styles.infoSection}>
+          {/* Info with slide animation */}
+          <Animated.View entering={FadeInDown.delay(200).duration(500).springify()} style={styles.infoSection}>
             <Text style={styles.nameAr}>{medicine.nameAr}</Text>
             <Text style={styles.nameEn}>{medicine.nameEn}</Text>
             
@@ -224,13 +260,13 @@ export default function MedicineDetailScreen() {
                 <Text style={styles.descTextEn}>{medicine.descriptionEn}</Text>
               </View>
             )}
-          </View>
+          </Animated.View>
 
           <View style={{ height: 140 }} />
         </ScrollView>
 
-        {/* Bottom Action Bar */}
-        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 56, marginTop: 24 }]}>
+        {/* Bottom Action Bar with slide-up animation */}
+        <Animated.View entering={SlideInDown.delay(400).duration(500).springify()} style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 56, marginTop: 24 }]}>
           {/* Quantity Selector with unit label */}
           <View style={styles.quantitySection}>
             <View style={styles.quantityContainer}>
@@ -253,15 +289,14 @@ export default function MedicineDetailScreen() {
             </Text>
           </View>
 
-          {/* Add to Cart Button */}
-          <Pressable
+          {/* Add to Cart Button with Bounce Animation */}
+          <BounceButton
             onPress={handleAddToCart}
             disabled={isInCart(medicine.id) || isOutOfStock}
-            style={({ pressed }) => [
+            style={[
               styles.addToCartBtn,
               (isInCart(medicine.id) || isOutOfStock) && styles.addToCartBtnDisabled,
               isOutOfStock && { backgroundColor: "#DC2626", opacity: 0.7 },
-              pressed && !isInCart(medicine.id) && !isOutOfStock && { opacity: 0.9, transform: [{ scale: 0.97 }] },
             ]}
           >
             <MaterialIcons name={isOutOfStock ? "remove-shopping-cart" : "shopping-cart"} size={24} color="#fff" />
@@ -273,8 +308,35 @@ export default function MedicineDetailScreen() {
                 {totalPrice.toFixed(2)} ج.م
               </Text>
             )}
-          </Pressable>
-        </View>
+          </BounceButton>
+
+          {/* Notify When Available Button */}
+          {isOutOfStock && (
+            <Pressable
+              onPress={handleStockAlert}
+              disabled={alertLoading}
+              style={({ pressed }) => [{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+                backgroundColor: (alertRegistered || stockAlertCheck.data) ? '#F59E0B' : '#7C3AED',
+                borderRadius: 12, paddingVertical: 14, marginTop: 8,
+              }, pressed && { opacity: 0.85 }]}
+            >
+              {alertLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <MaterialIcons
+                    name={(alertRegistered || stockAlertCheck.data) ? 'notifications-off' : 'notifications-active'}
+                    size={22} color="#fff"
+                  />
+                  <Text style={{ color: '#fff', fontSize: 15, fontWeight: 'bold' }}>
+                    {(alertRegistered || stockAlertCheck.data) ? 'إلغاء التنبيه' : 'أعلمني عند التوفر'}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          )}
+        </Animated.View>
       </View>
 
       {/* Toast Message */}
