@@ -450,6 +450,43 @@ export async function deleteCustomer(id: number) {
 }
 
 // ===== ORDER FUNCTIONS =====
+
+// Check stock availability before placing order
+export async function validateOrderStock(items: { medicineId: number; medicineName: string; quantity: number }[]): Promise<{ valid: boolean; errors: string[] }> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const errors: string[] = [];
+  
+  for (const item of items) {
+    const med = await db.select().from(medicines).where(eq(medicines.id, item.medicineId)).limit(1);
+    if (med.length === 0) {
+      errors.push(`الصنف "${item.medicineName}" غير موجود`);
+    } else if (med[0].stock !== null && med[0].stock !== undefined && med[0].stock < item.quantity) {
+      if (med[0].stock === 0) {
+        errors.push(`الصنف "${item.medicineName}" غير متوفر حالياً`);
+      } else {
+        errors.push(`الصنف "${item.medicineName}" - الكمية المطلوبة (${item.quantity}) أكبر من المتوفر (${med[0].stock})`);
+      }
+    }
+  }
+  
+  return { valid: errors.length === 0, errors };
+}
+
+// Deduct stock after order is created
+export async function deductStock(items: { medicineId: number; quantity: number }[]): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  for (const item of items) {
+    await db.update(medicines)
+      .set({ stock: sql`GREATEST(${medicines.stock} - ${item.quantity}, 0)` })
+      .where(eq(medicines.id, item.medicineId));
+  }
+  // Invalidate search cache since stock changed
+  invalidateSearchCache();
+}
+
 export async function createOrder(data: InsertOrder, items: InsertOrderItem[]) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -546,6 +583,52 @@ export async function getSalesReport() {
     totalOrders: totalOrders[0]?.count ?? 0,
     totalRevenue: totalRevenue[0]?.total ?? "0",
     ordersByStatus,
+  };
+}
+
+// ===== ADVANCED STATISTICS =====
+export async function getAdvancedStats() {
+  const db = await getDb();
+  if (!db) return { totalCustomers: 0, approvedCustomers: 0, pendingCustomers: 0, avgOrderValue: '0', totalMedicines: 0, outOfStockCount: 0, topCustomers: [] };
+  
+  // Total customers
+  const totalCustomers = await db.select({ count: sql<number>`COUNT(*)` }).from(customers);
+  
+  // Approved customers
+  const approvedCustomers = await db.select({ count: sql<number>`COUNT(*)` }).from(customers).where(eq(customers.status, 'approved'));
+  
+  // Pending customers
+  const pendingCustomers = await db.select({ count: sql<number>`COUNT(*)` }).from(customers).where(eq(customers.status, 'pending'));
+  
+  // Average order value
+  const avgOrder = await db.select({ avg: sql<string>`COALESCE(AVG(CAST(totalAmount AS DECIMAL(10,2))), 0)` }).from(orders);
+  
+  // Total active medicines
+  const totalMedicines = await db.select({ count: sql<number>`COUNT(*)` }).from(medicines).where(eq(medicines.isActive, true));
+  
+  // Out of stock count
+  const outOfStock = await db.select({ count: sql<number>`COUNT(*)` }).from(medicines).where(and(eq(medicines.isActive, true), sql`${medicines.stock} = 0`));
+  
+  // Top 10 customers by order count and total spending
+  const topCustomers = await db.select({
+    customerId: orders.customerId,
+    customerName: orders.customerName,
+    orderCount: sql<number>`COUNT(*)`,
+    totalSpent: sql<string>`COALESCE(SUM(CAST(totalAmount AS DECIMAL(10,2))), 0)`,
+  })
+    .from(orders)
+    .groupBy(orders.customerId, orders.customerName)
+    .orderBy(desc(sql`SUM(CAST(totalAmount AS DECIMAL(10,2)))`))
+    .limit(10);
+  
+  return {
+    totalCustomers: totalCustomers[0]?.count ?? 0,
+    approvedCustomers: approvedCustomers[0]?.count ?? 0,
+    pendingCustomers: pendingCustomers[0]?.count ?? 0,
+    avgOrderValue: parseFloat(avgOrder[0]?.avg ?? '0').toFixed(2),
+    totalMedicines: totalMedicines[0]?.count ?? 0,
+    outOfStockCount: outOfStock[0]?.count ?? 0,
+    topCustomers,
   };
 }
 

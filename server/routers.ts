@@ -179,7 +179,20 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { items, ...orderData } = input;
+        
+        // Step 1: Validate stock availability
+        const stockCheck = await db.validateOrderStock(items);
+        if (!stockCheck.valid) {
+          throw new Error(stockCheck.errors.join('\n'));
+        }
+        
+        // Step 2: Create the order
         const orderId = await db.createOrder(orderData as any, items.map(i => ({ ...i, orderId: 0 })));
+        
+        // Step 3: Deduct stock automatically
+        try {
+          await db.deductStock(items.map(i => ({ medicineId: i.medicineId, quantity: i.quantity })));
+        } catch (e) { console.warn("Failed to deduct stock:", e); }
         try {
           await notifyOwner({
             title: "طلب جديد #" + orderId,
@@ -267,6 +280,8 @@ export const appRouter = router({
         const date = input?.date ? new Date(input.date) : undefined;
         return db.getDailyOrdersReport(date);
       }),
+    // Advanced statistics
+    advancedStats: publicProcedure.query(() => db.getAdvancedStats()),
   }),
 
   // App Settings
