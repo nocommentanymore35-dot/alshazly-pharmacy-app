@@ -71,6 +71,14 @@ async function startServer() {
     }),
   );
 
+  // Run auto migrations before starting the server
+  try {
+    const { runAutoMigrations } = require("../auto-migrate");
+    await runAutoMigrations();
+  } catch (e) {
+    console.warn("[AutoMigrate] Failed to run auto migrations:", e);
+  }
+
   const port = parseInt(process.env.PORT || "3000");
 
   server.listen(port, "0.0.0.0", () => {
