@@ -49,9 +49,11 @@ export default function BannerDetailScreen() {
 
         <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
           {banner.imageUrl && !banner.imageUrl.includes('railway.app/uploads/') ? (
-            <Image source={{ uri: banner.imageUrl }} style={styles.image} contentFit="cover" />
+            <View style={styles.imageContainer}>
+              <Image source={{ uri: banner.imageUrl }} style={styles.image} contentFit="contain" />
+            </View>
           ) : (
-            <View style={[styles.image, { backgroundColor: "#2563EB", justifyContent: "center", alignItems: "center" }]}>
+            <View style={[styles.imageContainer, { backgroundColor: "#2563EB", justifyContent: "center", alignItems: "center" }]}>
               <MaterialIcons name="campaign" size={80} color="#fff" />
             </View>
           )}
@@ -81,6 +83,7 @@ const styles = StyleSheet.create({
   headerBtn: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: "bold", color: "#1F2937" },
   body: { flex: 1 },
+  imageContainer: { width: "100%", backgroundColor: "#F9FAFB", paddingVertical: 8 },
   image: { width: "100%", height: 250 },
   content: { padding: 20 },
   title: { fontSize: 22, fontWeight: "bold", color: "#1F2937", textAlign: "right" },

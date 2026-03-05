@@ -10,6 +10,27 @@ import {
   Dimensions,
 } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
+import { Audio } from "expo-av";
+
+// ─── Sound Assets ───────────────────────────────────────────────────
+const startSound = require("@/assets/sounds/start_listening.wav");
+const stopSound = require("@/assets/sounds/stop_listening.wav");
+
+async function playBeep(soundAsset: any) {
+  try {
+    const { sound } = await Audio.Sound.createAsync(soundAsset);
+    await sound.playAsync();
+    // Unload after playing to free memory
+    sound.setOnPlaybackStatusUpdate((status: any) => {
+      if (status.didJustFinish) {
+        sound.unloadAsync();
+      }
+    });
+  } catch (e) {
+    // Silently fail - sound is not critical
+    console.warn("Failed to play beep:", e);
+  }
+}
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -284,6 +305,7 @@ export default function VoiceSearchModal({
         setState("listening");
         startTimer();
         startMicAnimation();
+        playBeep(startSound);
       });
 
       const resultListener = ExpoSpeechRecognitionModule.addListener("result", (event: any) => {
@@ -303,6 +325,7 @@ export default function VoiceSearchModal({
               stopTimer();
               stopMicAnimation();
               setState("success");
+              playBeep(stopSound);
             }
           }, 2000);
         }
@@ -315,6 +338,7 @@ export default function VoiceSearchModal({
           stopTimer();
           stopMicAnimation();
           setState("success");
+          playBeep(stopSound);
         }
       });
 
