@@ -943,6 +943,29 @@ export async function getStockAlertCustomerTokens(medicineId: number): Promise<s
   return tokens;
 }
 
+// Get all stock alerts with customer and medicine details (for admin)
+export async function getAllStockAlertsWithDetails() {
+  const db = await getDb();
+  if (!db) return [];
+  const alerts = await db.select({
+    alertId: stockAlerts.id,
+    customerId: stockAlerts.customerId,
+    medicineId: stockAlerts.medicineId,
+    createdAt: stockAlerts.createdAt,
+    customerName: customers.fullName,
+    customerPhone: customers.phone,
+    customerAddress: customers.address,
+    medicineName: medicines.nameAr,
+    medicineNameEn: medicines.nameEn,
+    medicineStock: medicines.stock,
+  })
+  .from(stockAlerts)
+  .innerJoin(customers, eq(stockAlerts.customerId, customers.id))
+  .innerJoin(medicines, eq(stockAlerts.medicineId, medicines.id))
+  .orderBy(desc(stockAlerts.createdAt));
+  return alerts;
+}
+
 // Get stock alert count for a medicine
 export async function getStockAlertCount(medicineId: number): Promise<number> {
   const db = await getDb();

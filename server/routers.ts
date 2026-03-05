@@ -420,6 +420,9 @@ export const appRouter = router({
     count: publicProcedure
       .input(z.object({ medicineId: z.number() }))
       .query(({ input }) => db.getStockAlertCount(input.medicineId)),
+    // Get all alerts with customer details (admin)
+    listAll: publicProcedure
+      .query(() => db.getAllStockAlertsWithDetails()),
   }),
 
   // Database Backup
