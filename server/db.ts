@@ -521,7 +521,15 @@ export async function getOrderItems(orderId: number) {
 export async function getAllOrders() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(orders).orderBy(desc(orders.createdAt));
+  const allOrders = await db.select().from(orders).orderBy(desc(orders.createdAt));
+  // Fetch order items for each order
+  const ordersWithItems = await Promise.all(
+    allOrders.map(async (order) => {
+      const items = await db.select().from(orderItems).where(eq(orderItems.orderId, order.id));
+      return { ...order, items };
+    })
+  );
+  return ordersWithItems;
 }
 
 export async function updateOrderStatus(id: number, status: "received" | "preparing" | "shipped" | "delivered") {
