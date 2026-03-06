@@ -361,8 +361,8 @@ export const appRouter = router({
   // Push Notifications
   pushTokens: router({
     register: publicProcedure
-      .input(z.object({ token: z.string(), deviceId: z.string().optional(), customerId: z.number().optional(), isAdmin: z.boolean().optional() }))
-      .mutation(({ input }) => db.registerPushToken(input.token, input.deviceId, input.customerId, input.isAdmin ?? false)),
+      .input(z.object({ token: z.string(), deviceId: z.string().nullish(), customerId: z.number().nullish(), isAdmin: z.boolean().optional() }))
+      .mutation(({ input }) => db.registerPushToken(input.token, input.deviceId ?? undefined, input.customerId ?? undefined, input.isAdmin ?? false)),
     remove: publicProcedure
       .input(z.object({ token: z.string() }))
       .mutation(({ input }) => db.removePushToken(input.token)),

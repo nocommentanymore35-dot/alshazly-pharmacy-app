@@ -83,8 +83,8 @@ export function PushNotificationRegistrar() {
         // Register on server with all available info
         registerMutation.mutate({
           token,
-          deviceId: deviceId || undefined,
-          customerId: customerId || undefined,
+          deviceId: deviceId ? deviceId : undefined,
+          customerId: customerId ? customerId : undefined,
           isAdmin: isAdminLoggedIn || false,
         });
 
@@ -114,8 +114,8 @@ export function PushNotificationRegistrar() {
 
     registerMutation.mutate({
       token: pushToken,
-      deviceId: deviceId || undefined,
-      customerId: customerId || undefined,
+      deviceId: deviceId ? deviceId : undefined,
+      customerId: customerId ? customerId : undefined,
       isAdmin: isAdminLoggedIn || false,
     });
   }, [isAdminLoggedIn, customerId, pushToken]);
