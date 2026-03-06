@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState } from "react";
-import { Platform, Alert } from "react-native";
+import { useEffect, useRef } from "react";
+import { Platform } from "react-native";
 import * as Notifications from "expo-notifications";
 import * as Device from "expo-device";
 import Constants from "expo-constants";
-import { trpc } from "@/lib/trpc";
 import { useAppStore } from "@/lib/store";
+import { getApiBaseUrl } from "@/constants/oauth";
 
 // Configure notification handler at module level
 Notifications.setNotificationHandler({
@@ -15,173 +15,211 @@ Notifications.setNotificationHandler({
   }),
 });
 
+/**
+ * Registers push notification token with the server.
+ * Uses direct fetch() instead of tRPC to avoid any serialization issues.
+ * Has multiple fallback mechanisms for token acquisition.
+ */
 export function PushNotificationRegistrar() {
-  const [pushToken, setPushToken] = useState<string | null>(null);
-  const [registered, setRegistered] = useState(false);
-  const registerMutation = trpc.pushTokens.register.useMutation({
-    onSuccess: () => {
-      console.log("[Push] ✅ Token registered on server successfully");
-      setRegistered(true);
-    },
-    onError: (error: any) => {
-      console.error("[Push] ❌ Server registration failed:", error?.message || error);
-    },
-  });
   const { state } = useAppStore();
-  const customerId = state.customerId;
   const deviceId = state.deviceId;
+  const customerId = state.customerId;
   const isAdminLoggedIn = state.isAdminLoggedIn;
-  const retryCount = useRef(0);
-  const maxRetries = 5;
-  const hasStarted = useRef(false);
+  const hasRegistered = useRef(false);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Register for push notifications on mount
+  // Setup Android notification channels
   useEffect(() => {
     if (Platform.OS === "web") return;
-    if (hasStarted.current) return;
-    hasStarted.current = true;
+    if (Platform.OS === "android") {
+      Notifications.setNotificationChannelAsync("default", {
+        name: "Default",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#2196F3",
+        sound: "default",
+      });
+      Notifications.setNotificationChannelAsync("orders", {
+        name: "الطلبات",
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#2196F3",
+        sound: "default",
+      });
+    }
+  }, []);
 
-    async function register() {
-      try {
-        console.log("[Push] Starting registration... attempt:", retryCount.current + 1);
+  // Register push token - waits for deviceId to be available
+  useEffect(() => {
+    if (Platform.OS === "web") return;
+    if (!deviceId) return; // Wait until deviceId is set
+    if (hasRegistered.current) return;
 
-        // Set up Android notification channel
-        if (Platform.OS === "android") {
-          await Notifications.setNotificationChannelAsync("default", {
-            name: "Default",
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: "#2196F3",
-            sound: "default",
-          });
-          await Notifications.setNotificationChannelAsync("orders", {
-            name: "الطلبات",
-            importance: Notifications.AndroidImportance.MAX,
-            vibrationPattern: [0, 250, 250, 250],
-            lightColor: "#2196F3",
-            sound: "default",
-          });
-          console.log("[Push] Android channels created");
-        }
+    hasRegistered.current = true;
 
-        // Check if physical device
-        if (!Device.isDevice) {
-          console.log("[Push] Not a physical device - registering with fallback token");
-          // Even on emulator, try to register with a device-based token
-          const fallbackToken = `device_${deviceId || 'unknown'}_${Date.now()}`;
-          sendTokenToServer(fallbackToken);
-          return;
-        }
+    async function registerPushToken() {
+      let token: string | null = null;
+      let attempt = 0;
+      const maxAttempts = 3;
 
-        // Check and request permissions
-        console.log("[Push] Checking permissions...");
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        console.log("[Push] Existing permission status:", existingStatus);
-        
-        let finalStatus = existingStatus;
-        if (existingStatus !== "granted") {
-          console.log("[Push] Requesting permissions...");
-          const { status } = await Notifications.requestPermissionsAsync();
-          finalStatus = status;
-          console.log("[Push] New permission status:", finalStatus);
-        }
+      while (attempt < maxAttempts && !token) {
+        attempt++;
+        console.log(`[Push] Attempt ${attempt}/${maxAttempts} to get push token...`);
 
-        if (finalStatus !== "granted") {
-          console.log("[Push] Permission denied - registering with device token as fallback");
-          // Register with a device-based token so admin can at least see the device
-          const fallbackToken = `device_noperm_${deviceId || 'unknown'}_${Date.now()}`;
-          sendTokenToServer(fallbackToken);
-          return;
-        }
-
-        // Get push token
-        console.log("[Push] Getting Expo push token...");
-        const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-        console.log("[Push] Project ID:", projectId);
-        
         try {
-          const tokenData = await Notifications.getExpoPushTokenAsync({
-            projectId: projectId || "6391fb6e-21f2-4b17-8a4a-bef58f930e77",
-          });
-          const token = tokenData.data;
-          console.log("[Push] ✅ Got Expo push token:", token);
-          setPushToken(token);
-          sendTokenToServer(token);
-        } catch (tokenError: any) {
-          console.error("[Push] ❌ Failed to get Expo push token:", tokenError?.message || tokenError);
-          // Fallback: try getting device push token directly
-          try {
-            const deviceToken = await Notifications.getDevicePushTokenAsync();
-            const token = `native_${deviceToken.data}`;
-            console.log("[Push] Got native device token:", token);
-            setPushToken(token);
-            sendTokenToServer(token);
-          } catch (deviceTokenError: any) {
-            console.error("[Push] ❌ Failed to get device token too:", deviceTokenError?.message);
-            // Last resort: register with device ID
-            const fallbackToken = `fallback_${deviceId || 'unknown'}_${Date.now()}`;
-            console.log("[Push] Using fallback token:", fallbackToken);
-            sendTokenToServer(fallbackToken);
+          // Step 1: Try to get Expo Push Token
+          if (Device.isDevice) {
+            // Check permissions
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+            if (existingStatus !== "granted") {
+              const { status } = await Notifications.requestPermissionsAsync();
+              finalStatus = status;
+            }
+
+            if (finalStatus === "granted") {
+              try {
+                const projectId = Constants.expoConfig?.extra?.eas?.projectId || "6391fb6e-21f2-4b17-8a4a-bef58f930e77";
+                const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+                token = tokenData.data;
+                console.log("[Push] Got Expo push token:", token);
+              } catch (expoErr: any) {
+                console.warn("[Push] Expo token failed:", expoErr?.message);
+                // Try native token
+                try {
+                  const deviceToken = await Notifications.getDevicePushTokenAsync();
+                  token = `native_${deviceToken.data}`;
+                  console.log("[Push] Got native token:", token);
+                } catch (nativeErr: any) {
+                  console.warn("[Push] Native token failed:", nativeErr?.message);
+                }
+              }
+            } else {
+              console.log("[Push] Permission not granted, status:", finalStatus);
+            }
+          } else {
+            console.log("[Push] Not a physical device");
           }
+        } catch (err: any) {
+          console.warn(`[Push] Attempt ${attempt} error:`, err?.message);
         }
-      } catch (error: any) {
-        console.error("[Push] Registration error:", error?.message || error);
-        retryCount.current += 1;
-        if (retryCount.current < maxRetries) {
-          const delay = retryCount.current * 3000; // Increasing delay
-          console.log(`[Push] Will retry in ${delay / 1000} seconds...`);
-          setTimeout(register, delay);
+
+        // If still no token, wait before retrying
+        if (!token && attempt < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
         }
       }
+
+      // Use fallback token if all attempts failed
+      if (!token) {
+        token = `device_${deviceId}_${Date.now()}`;
+        console.log("[Push] Using fallback device token:", token);
+      }
+
+      // Send token to server using direct fetch (more reliable than tRPC)
+      await sendTokenToServer(token);
     }
 
-    function sendTokenToServer(token: string) {
+    async function sendTokenToServer(token: string) {
+      const baseUrl = getApiBaseUrl();
+      const url = `${baseUrl}/api/trpc/pushTokens.register`;
+
+      // Build payload - only include fields with real values
       const payload: Record<string, any> = {
         token,
         isAdmin: isAdminLoggedIn || false,
       };
-      
-      // Only add optional fields if they have real values
-      if (deviceId && typeof deviceId === 'string' && deviceId.trim().length > 0) {
-        payload.deviceId = deviceId;
+      if (deviceId) payload.deviceId = deviceId;
+      if (customerId && customerId > 0) payload.customerId = customerId;
+
+      console.log("[Push] Sending token to server:", url, JSON.stringify(payload));
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ json: payload }),
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log("[Push] \u2705 Token registered successfully on attempt", attempt);
+            return;
+          } else {
+            const errorText = await response.text();
+            console.warn(`[Push] Server returned ${response.status}:`, errorText);
+          }
+        } catch (fetchErr: any) {
+          console.warn(`[Push] Fetch attempt ${attempt} failed:`, fetchErr?.message);
+        }
+
+        // Wait before retry
+        if (attempt < 3) {
+          await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+        }
       }
-      if (customerId && typeof customerId === 'number' && customerId > 0) {
-        payload.customerId = customerId;
-      }
-      
-      console.log("[Push] Sending to server:", JSON.stringify(payload));
-      registerMutation.mutate(payload as any);
+
+      console.error("[Push] \u274c All attempts to register token failed");
     }
 
-    // Start after a short delay
-    const timer = setTimeout(register, 3000);
+    // Start registration after a short delay to let the app initialize
+    const timer = setTimeout(registerPushToken, 2000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [deviceId]);
 
-  // Re-register when customerId or admin status changes
+  // Re-register when customerId changes (after profile save)
   useEffect(() => {
     if (Platform.OS === "web") return;
-    if (!pushToken) return;
-    if (!registered) return; // Don't re-register if initial registration hasn't succeeded
+    if (!deviceId) return;
+    if (!customerId || customerId <= 0) return;
+    if (!hasRegistered.current) return;
 
-    console.log("[Push] Re-registering with updated info - customerId:", customerId, "isAdmin:", isAdminLoggedIn);
-    
-    const payload: Record<string, any> = {
-      token: pushToken,
-      isAdmin: isAdminLoggedIn || false,
-    };
-    
-    if (deviceId && typeof deviceId === 'string' && deviceId.trim().length > 0) {
-      payload.deviceId = deviceId;
-    }
-    if (customerId && typeof customerId === 'number' && customerId > 0) {
-      payload.customerId = customerId;
-    }
-    
-    registerMutation.mutate(payload as any);
-  }, [isAdminLoggedIn, customerId]);
+    // Update the server with the new customerId
+    async function updateRegistration() {
+      const baseUrl = getApiBaseUrl();
+      const url = `${baseUrl}/api/trpc/pushTokens.register`;
 
-  // Listen for notifications
+      // We need a token - try to get the current one or use fallback
+      let token: string;
+      try {
+        if (Device.isDevice) {
+          const projectId = Constants.expoConfig?.extra?.eas?.projectId || "6391fb6e-21f2-4b17-8a4a-bef58f930e77";
+          const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+          token = tokenData.data;
+        } else {
+          token = `device_${deviceId}_reregister`;
+        }
+      } catch {
+        token = `device_${deviceId}_reregister`;
+      }
+
+      const payload: Record<string, any> = {
+        token,
+        isAdmin: isAdminLoggedIn || false,
+        deviceId,
+        customerId,
+      };
+
+      console.log("[Push] Re-registering with customerId:", customerId);
+
+      try {
+        await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ json: payload }),
+        });
+        console.log("[Push] \u2705 Re-registration successful");
+      } catch (err: any) {
+        console.warn("[Push] Re-registration failed:", err?.message);
+      }
+    }
+
+    const timer = setTimeout(updateRegistration, 1000);
+    return () => clearTimeout(timer);
+  }, [customerId, isAdminLoggedIn]);
+
+  // Listen for incoming notifications
   useEffect(() => {
     if (Platform.OS === "web") return;
 
