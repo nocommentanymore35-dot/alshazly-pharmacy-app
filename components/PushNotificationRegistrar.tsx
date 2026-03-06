@@ -6,7 +6,7 @@ import Constants from "expo-constants";
 import { trpc } from "@/lib/trpc";
 import { useAppStore } from "@/lib/store";
 
-// Configure notification handler at module level - safe for native builds
+// Configure notification handler at module level
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
@@ -24,6 +24,23 @@ export function PushNotificationRegistrar() {
   const isAdminLoggedIn = state.isAdminLoggedIn;
   const retryCount = useRef(0);
   const maxRetries = 3;
+
+  // Build registration payload - only include fields that have values
+  function buildPayload(token: string) {
+    const payload: { token: string; isAdmin: boolean; deviceId?: string; customerId?: number } = {
+      token,
+      isAdmin: isAdminLoggedIn || false,
+    };
+    // Only add deviceId if it's a non-empty string
+    if (deviceId && typeof deviceId === 'string' && deviceId.length > 0) {
+      payload.deviceId = deviceId;
+    }
+    // Only add customerId if it's a positive number
+    if (customerId && typeof customerId === 'number' && customerId > 0) {
+      payload.customerId = customerId;
+    }
+    return payload;
+  }
 
   // Register for push notifications on mount
   useEffect(() => {
@@ -53,14 +70,10 @@ export function PushNotificationRegistrar() {
 
         // Check and request permissions
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        console.log("[Push] Existing permission status:", existingStatus);
-
         let finalStatus = existingStatus;
         if (existingStatus !== "granted") {
-          console.log("[Push] Requesting permission...");
           const { status } = await Notifications.requestPermissionsAsync();
           finalStatus = status;
-          console.log("[Push] New permission status:", finalStatus);
         }
 
         if (finalStatus !== "granted") {
@@ -70,8 +83,6 @@ export function PushNotificationRegistrar() {
 
         // Get push token
         const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-        console.log("[Push] Project ID:", projectId);
-
         const tokenData = await Notifications.getExpoPushTokenAsync({
           projectId: projectId || "6391fb6e-21f2-4b17-8a4a-bef58f930e77",
         });
@@ -80,18 +91,14 @@ export function PushNotificationRegistrar() {
         console.log("[Push] Got token:", token);
         setPushToken(token);
 
-        // Register on server with all available info
-        registerMutation.mutate({
-          token,
-          deviceId: deviceId ? deviceId : undefined,
-          customerId: customerId ? customerId : undefined,
-          isAdmin: isAdminLoggedIn || false,
-        });
+        // Register on server - only send fields with actual values
+        const payload = buildPayload(token);
+        console.log("[Push] Sending payload:", JSON.stringify(payload));
+        registerMutation.mutate(payload);
 
-        console.log("[Push] Registration complete - customerId:", customerId, "deviceId:", deviceId);
+        console.log("[Push] Registration complete");
       } catch (error) {
         console.error("[Push] Registration error:", error);
-        // Retry after delay
         retryCount.current += 1;
         if (retryCount.current < maxRetries) {
           console.log("[Push] Will retry in 5 seconds...");
@@ -100,7 +107,7 @@ export function PushNotificationRegistrar() {
       }
     }
 
-    // Small delay to ensure app is ready and customerId/deviceId are loaded
+    // Small delay to ensure app is ready
     const timer = setTimeout(register, 2000);
     return () => clearTimeout(timer);
   }, [deviceId]);
@@ -111,13 +118,8 @@ export function PushNotificationRegistrar() {
     if (!pushToken) return;
 
     console.log("[Push] Re-registering - isAdmin:", isAdminLoggedIn, "customerId:", customerId, "deviceId:", deviceId);
-
-    registerMutation.mutate({
-      token: pushToken,
-      deviceId: deviceId ? deviceId : undefined,
-      customerId: customerId ? customerId : undefined,
-      isAdmin: isAdminLoggedIn || false,
-    });
+    const payload = buildPayload(pushToken);
+    registerMutation.mutate(payload);
   }, [isAdminLoggedIn, customerId, pushToken]);
 
   // Listen for notifications
