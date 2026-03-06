@@ -350,6 +350,12 @@ export const appRouter = router({
       .input(z.object({ token: z.string() }))
       .mutation(({ input }) => db.removePushToken(input.token)),
     count: publicProcedure.query(() => db.getPushTokenCount()),
+    debug: publicProcedure.query(async () => {
+      const all = await db.getAllPushTokens();
+      const real = all.filter(t => t.startsWith('ExponentPushToken[') || t.startsWith('ExpoPushToken['));
+      const fallback = all.filter(t => !t.startsWith('ExponentPushToken[') && !t.startsWith('ExpoPushToken['));
+      return { total: all.length, realTokens: real.length, fallbackTokens: fallback.length, tokens: all.map(t => t.substring(0, 40) + (t.length > 40 ? '...' : '')) };
+    }),
     sendBroadcast: publicProcedure
       .input(z.object({
         title: z.string().min(1, "عنوان الإشعار مطلوب"),
