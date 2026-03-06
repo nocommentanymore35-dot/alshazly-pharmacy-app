@@ -22,8 +22,8 @@ export default function ProfileScreen() {
   const [address, setAddress] = useState(state.profile.address);
   const [saving, setSaving] = useState(false);
 
-  const customerMutation = trpc.customers.getOrCreate.useMutation();
   const updateMutation = trpc.customers.update.useMutation();
+  const getOrCreateMutation = trpc.customers.getOrCreate.useMutation();
 
   const ordersQuery = trpc.orders.byCustomer.useQuery(
     { customerId: state.customerId! },
@@ -35,23 +35,6 @@ export default function ProfileScreen() {
     setPhone(state.profile.phone);
     setAddress(state.profile.address);
   }, [state.profile]);
-
-  // Register customer on mount
-  useEffect(() => {
-    if (state.deviceId && !state.customerId) {
-      customerMutation.mutate(
-        { deviceId: state.deviceId },
-        {
-          onSuccess: (data) => {
-            if (data) {
-              dispatch({ type: "SET_CUSTOMER_ID", payload: data.id });
-              if (data.fullName) setProfile({ fullName: data.fullName, phone: data.phone ?? "", address: data.address ?? "" });
-            }
-          },
-        }
-      );
-    }
-  }, [state.deviceId]);
 
   const handleSave = async () => {
     if (!fullName.trim()) {
@@ -69,8 +52,18 @@ export default function ProfileScreen() {
 
     setSaving(true);
     try {
+      // Save locally first
       setProfile({ fullName: fullName.trim(), phone: phone.trim(), address: address.trim() });
+
       if (state.deviceId) {
+        // Step 1: ALWAYS ensure customer exists in DB first (handles DB resets)
+        const customer = await getOrCreateMutation.mutateAsync({ deviceId: state.deviceId });
+        if (customer) {
+          // Update customerId in case it changed (DB was reset)
+          dispatch({ type: "SET_CUSTOMER_ID", payload: customer.id });
+        }
+
+        // Step 2: Now update the customer profile
         await updateMutation.mutateAsync({
           deviceId: state.deviceId,
           fullName: fullName.trim(),
@@ -80,7 +73,8 @@ export default function ProfileScreen() {
       }
       Alert.alert("تم الحفظ", "تم حفظ بياناتك بنجاح ـ يمكنك تعديل هذه البيانات فى اى وقت و حفظها ولكن لا تحذفها لانه سيتم استخدامها فى توصيل الطلب إليكم\n\nبياناتك آمنه و سريه تماما 🔒");
     } catch (e) {
-      Alert.alert("خطأ", "حدث خطأ أثناء الحفظ");
+      console.warn("Profile save error:", e);
+      Alert.alert("خطأ", "حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى");
     }
     setSaving(false);
   };

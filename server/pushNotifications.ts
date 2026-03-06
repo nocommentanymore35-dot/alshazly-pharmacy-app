@@ -92,3 +92,5 @@ export async function notifyAdminNewCustomer(adminTokens: string[], customerName
     { type: "new_customer" }
   );
 }
+
+// trigger redeploy with latest changes

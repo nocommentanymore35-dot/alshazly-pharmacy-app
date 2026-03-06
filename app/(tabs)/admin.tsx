@@ -11,7 +11,7 @@ import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import ImagePickerButton from "@/components/ImagePickerButton";
 
-type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "notifications" | "settings";
+type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "notifications" | "stockAlerts" | "settings";
 
 // Helper: check if image URL is broken (old local URL that no longer exists)
 function isBrokenImageUrl(url: string | null | undefined): boolean {
@@ -148,6 +148,7 @@ export default function AdminScreen() {
             { key: "reports", label: "التقارير", icon: "bar-chart" },
             { key: "customers", label: "العملاء", icon: "people" },
             { key: "notifications", label: "الإشعارات", icon: "notifications" },
+            { key: "stockAlerts", label: "طلبات التوفر", icon: "notification-important" },
             { key: "settings", label: "الإعدادات", icon: "settings" },
           ].map((tab) => (
             <Pressable
@@ -173,6 +174,7 @@ export default function AdminScreen() {
           {activeTab === "reports" && <ReportsView />}
           {activeTab === "customers" && <CustomersManagement />}
           {activeTab === "notifications" && <NotificationsManagement />}
+          {activeTab === "stockAlerts" && <StockAlertsManagement />}
           {activeTab === "settings" && <SettingsManagement />}
         </View>
       </View>
@@ -293,7 +295,6 @@ function MedicinesManagement() {
   const [stock, setStock] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [descAr, setDescAr] = useState("");
-  const [barcode, setBarcode] = useState("");
 
   const medsQuery = trpc.medicines.listAll.useQuery();
   const catsQuery = trpc.categories.listAll.useQuery();
@@ -306,7 +307,7 @@ function MedicinesManagement() {
 
   const resetForm = () => {
     setNameAr(""); setNameEn(""); setStrips("1"); setPrice(""); setDescAr("");
-    setCategoryId(""); setStock(""); setImageUrl(""); setBarcode(""); setEditId(null); setShowForm(false);
+    setCategoryId(""); setStock(""); setImageUrl(""); setEditId(null); setShowForm(false);
   };
 
   const handleSave = async () => {
@@ -322,7 +323,6 @@ function MedicinesManagement() {
           categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
           strips: parseInt(strips) || 1,
           imageUrl: imageUrl.trim() || undefined,
-          barcode: barcode.trim() || undefined,
         });
       } else {
         await createMutation.mutateAsync({
@@ -331,7 +331,6 @@ function MedicinesManagement() {
           categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
           strips: parseInt(strips) || 1,
           imageUrl: imageUrl.trim() || undefined,
-          barcode: barcode.trim() || undefined,
         });
       }
       medsQuery.refetch();
@@ -352,7 +351,6 @@ function MedicinesManagement() {
     setCategoryId(med.categoryId.toString());
     setStock(med.stock?.toString() ?? "0");
     setImageUrl(med.imageUrl ?? "");
-    setBarcode(med.barcode ?? "");
     setShowForm(true);
   };
 
@@ -404,11 +402,6 @@ function MedicinesManagement() {
           </ScrollView>
 
           <TextInput style={styles.formInput} placeholder="المخزون *" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-            <MaterialIcons name="qr-code" size={16} color="#6B7280" />
-            <Text style={styles.formLabel}>الباركود (اختياري)</Text>
-          </View>
-          <TextInput style={styles.formInput} placeholder="رقم الباركود الموجود على العبوة" value={barcode} onChangeText={setBarcode} placeholderTextColor="#9CA3AF" autoCapitalize="none" />
           {/* Image Upload Section */}
           <ImagePickerButton
             currentImageUrl={imageUrl}
@@ -444,7 +437,7 @@ function MedicinesManagement() {
             <View style={{ flex: 1 }}>
               <Text style={styles.adminCardTitle}>{med.nameAr}</Text>
               <Text style={styles.adminCardSubtitle}>{med.nameEn}</Text>
-              <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط: {med.strips ?? 1} | مخزون: {med.stock}{med.barcode ? ` | باركود: ${med.barcode}` : ''}</Text>
+              <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط: {med.strips ?? 1} | مخزون: {med.stock}</Text>
               {isBrokenImageUrl(med.imageUrl) && (
                 <Text style={{ fontSize: 10, color: "#DC2626", marginTop: 2 }}>⚠ الصورة مفقودة - اضغط تعديل لإعادة رفعها</Text>
               )}
@@ -931,9 +924,16 @@ function NotificationsManagement() {
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>الأجهزة المسجلة</Text>
           {tokenCountQuery.data ? (
-            <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-              الإجمالي: {tokenCountQuery.data.total} | العملاء: {tokenCountQuery.data.customers} | الإدارة: {tokenCountQuery.data.admin}
-            </Text>
+            <>
+              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                الإجمالي: {tokenCountQuery.data.total} | العملاء: {tokenCountQuery.data.customers} | الإدارة: {tokenCountQuery.data.admin}
+              </Text>
+              {tokenCountQuery.data.total === 0 && (
+                <Text style={{ fontSize: 11, color: '#DC2626', marginTop: 4 }}>
+                  لم يتم تسجيل أجهزة بعد. يجب أن يفتح العميل التطبيق ويوافق على إذن الإشعارات ليتم تسجيل جهازه.
+                </Text>
+              )}
+            </>
           ) : (
             <ActivityIndicator size="small" />
           )}
@@ -1024,6 +1024,119 @@ function NotificationsManagement() {
         </Text>
       </View>
     </ScrollView>
+  );
+}
+
+// ===== Stock Alerts Management =====
+function StockAlertsManagement() {
+  const alertsQuery = trpc.stockAlerts.listAll.useQuery();
+  const alerts = alertsQuery.data ?? [];
+
+  // Group alerts by medicine
+  const groupedAlerts: Record<number, { medicineName: string; medicineNameEn: string; medicineStock: number; customers: { id: number; name: string | null; phone: string | null; address: string | null; date: string }[] }> = {};
+  alerts.forEach((alert: any) => {
+    if (!groupedAlerts[alert.medicineId]) {
+      groupedAlerts[alert.medicineId] = {
+        medicineName: alert.medicineName,
+        medicineNameEn: alert.medicineNameEn,
+        medicineStock: alert.medicineStock ?? 0,
+        customers: [],
+      };
+    }
+    groupedAlerts[alert.medicineId].customers.push({
+      id: alert.customerId,
+      name: alert.customerName,
+      phone: alert.customerPhone,
+      address: alert.customerAddress,
+      date: new Date(alert.createdAt).toLocaleDateString('ar-EG'),
+    });
+  });
+
+  const medicineIds = Object.keys(groupedAlerts).map(Number);
+
+  return (
+    <View>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <Text style={styles.sectionTitle}>طلبات "أعلمني عند التوفر"</Text>
+        <Pressable onPress={() => alertsQuery.refetch()} style={({ pressed }) => [{ padding: 6 }, pressed && { opacity: 0.6 }]}>
+          <MaterialIcons name="refresh" size={22} color="#2563EB" />
+        </Pressable>
+      </View>
+
+      {alertsQuery.isLoading ? (
+        <ActivityIndicator size="large" color="#2563EB" />
+      ) : medicineIds.length === 0 ? (
+        <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+          <MaterialIcons name="notifications-off" size={48} color="#D1D5DB" />
+          <Text style={{ color: '#9CA3AF', marginTop: 8, fontSize: 15 }}>لا توجد طلبات تنبيه حالياً</Text>
+        </View>
+      ) : (
+        medicineIds.map((medId) => {
+          const group = groupedAlerts[medId];
+          return (
+            <View key={medId} style={[styles.adminCard, { marginBottom: 12 }]}>
+              {/* Medicine Header */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#1F2937' }}>{group.medicineName}</Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280' }}>{group.medicineNameEn}</Text>
+                </View>
+                <View style={{ backgroundColor: group.medicineStock > 0 ? '#DEF7EC' : '#FEE2E2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
+                  <Text style={{ fontSize: 11, fontWeight: '600', color: group.medicineStock > 0 ? '#03543F' : '#DC2626' }}>
+                    {group.medicineStock > 0 ? `متوفر (${group.medicineStock})` : 'غير متوفر'}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Customers Count */}
+              <View style={{ backgroundColor: '#EFF6FF', padding: 8, borderRadius: 8, marginBottom: 8 }}>
+                <Text style={{ fontSize: 13, fontWeight: '600', color: '#2563EB' }}>
+                  عدد العملاء المنتظرين: {group.customers.length}
+                </Text>
+              </View>
+
+              {/* Customer List */}
+              {group.customers.map((cust, idx) => (
+                <View key={`${medId}-${cust.id}-${idx}`} style={{ backgroundColor: '#F9FAFB', padding: 10, borderRadius: 8, marginBottom: 6, borderWidth: 1, borderColor: '#E5E7EB' }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <MaterialIcons name="person" size={16} color="#6B7280" />
+                      <Text style={{ fontSize: 14, fontWeight: '600', color: '#1F2937' }}>
+                        {cust.name || 'عميل بدون اسم'}
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 11, color: '#9CA3AF' }}>{cust.date}</Text>
+                  </View>
+
+                  {cust.phone ? (
+                    <Pressable
+                      onPress={() => Linking.openURL(`tel:${cust.phone}`)}
+                      style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }, pressed && { opacity: 0.6 }]}
+                    >
+                      <MaterialIcons name="phone" size={14} color="#2563EB" />
+                      <Text style={{ fontSize: 13, color: '#2563EB', fontWeight: '500' }}>{cust.phone}</Text>
+                      <Text style={{ fontSize: 11, color: '#9CA3AF' }}>(اضغط للاتصال)</Text>
+                    </Pressable>
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                      <MaterialIcons name="phone-disabled" size={14} color="#D1D5DB" />
+                      <Text style={{ fontSize: 12, color: '#9CA3AF' }}>لا يوجد رقم هاتف</Text>
+                    </View>
+                  )}
+
+                  {cust.address ? (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+                      <MaterialIcons name="location-on" size={14} color="#6B7280" />
+                      <Text style={{ fontSize: 12, color: '#6B7280' }}>{cust.address}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ))}
+            </View>
+          );
+        })
+      )}
+    </View>
   );
 }
 

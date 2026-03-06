@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   Text, View, TextInput, FlatList, ScrollView,
   Dimensions, ActivityIndicator, RefreshControl,
-  I18nManager, StyleSheet, Alert, Platform,
+  I18nManager, StyleSheet, Platform,
 } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -13,7 +13,6 @@ import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, withSequence, withSpring, Easing, FadeInDown, FadeInRight, FadeIn, SlideInRight, ZoomIn } from "react-native-reanimated";
 import VoiceSearchModal from "@/components/VoiceSearchModal";
-import BarcodeScanner from "@/components/BarcodeScanner";
 import { PulseView, FadeSlideSection } from "@/components/AnimatedComponents";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -32,15 +31,6 @@ export default function HomeScreen() {
 
   // Voice Search Modal State
   const [voiceModalVisible, setVoiceModalVisible] = useState(false);
-  // Barcode Scanner State
-  const [barcodeModalVisible, setBarcodeModalVisible] = useState(false);
-  const [barcodeLoading, setBarcodeLoading] = useState(false);
-
-  const [barcodeValue, setBarcodeValue] = useState("");
-  const barcodeQuery = trpc.medicines.byBarcode.useQuery(
-    { barcode: barcodeValue },
-    { enabled: barcodeValue.length > 0 }
-  );
   const bannersQuery = trpc.banners.list.useQuery();
   const categoriesQuery = trpc.categories.list.useQuery();
   const medicinesQuery = trpc.medicines.list.useQuery();
@@ -64,7 +54,7 @@ export default function HomeScreen() {
     : selectedCategory !== null
       ? categoryMedicines
       : allMedicines
-  ).slice().sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '', 'ar'));
+  ).slice().sort((a: any, b: any) => (a.nameAr || '').localeCompare(b.nameAr || '', 'ar') || (a.nameEn || '').localeCompare(b.nameEn || '', 'en'));
 
   // Handle voice search result
   const handleVoiceResult = useCallback((text: string) => {
@@ -72,35 +62,6 @@ export default function HomeScreen() {
     setSelectedCategory(null);
   }, []);
 
-  // Handle barcode scan result
-  const handleBarcodeScan = useCallback(async (barcode: string) => {
-    setBarcodeLoading(true);
-    setBarcodeValue(barcode);
-    try {
-      // Wait a moment for the query to fire
-      await new Promise(resolve => setTimeout(resolve, 500));
-    } catch (e) {
-      // ignore
-    }
-    setBarcodeLoading(false);
-  }, []);
-
-  // Watch for barcode query results
-  useEffect(() => {
-    if (barcodeValue && barcodeQuery.data) {
-      // Found medicine by barcode - navigate to it
-      setBarcodeModalVisible(false);
-      router.push(`/medicine/${barcodeQuery.data.id}` as any);
-      setBarcodeValue("");
-    } else if (barcodeValue && !barcodeQuery.isLoading && !barcodeQuery.data) {
-      // Not found by barcode - search by text
-      setSearchQuery(barcodeValue);
-      setSelectedCategory(null);
-      setBarcodeModalVisible(false);
-      setBarcodeValue("");
-      Alert.alert("تنبيه", "لم يتم العثور على دواء بهذا الباركود. تم البحث بالنص بدلاً من ذلك.");
-    }
-  }, [barcodeQuery.data, barcodeQuery.isLoading, barcodeValue]);
 
   // Auto-scroll banners every 7 seconds
   const bannerScrollRef = useRef<ScrollView>(null);
@@ -213,18 +174,6 @@ export default function HomeScreen() {
               </PulseView>
             </Pressable>
 
-            {/* Barcode Scanner Button */}
-            <Pressable
-              onPress={() => setBarcodeModalVisible(true)}
-              style={({ pressed }) => [
-                styles.barcodeButton,
-                pressed && { opacity: 0.6, transform: [{ scale: 0.92 }] },
-              ]}
-            >
-              <View style={styles.barcodeIconContainer}>
-                <MaterialIcons name="qr-code-scanner" size={18} color="#2563EB" />
-              </View>
-            </Pressable>
 
             <MaterialIcons name="search" size={22} color="#6B7280" style={{ marginLeft: 8 }} />
             <TextInput
@@ -363,13 +312,6 @@ export default function HomeScreen() {
         onResult={handleVoiceResult}
       />
 
-      {/* Barcode Scanner Modal */}
-      <BarcodeScanner
-        visible={barcodeModalVisible}
-        onClose={() => setBarcodeModalVisible(false)}
-        onBarcodeScanned={handleBarcodeScan}
-        loading={barcodeLoading}
-      />
     </ScreenContainer>
   );
 }
@@ -410,20 +352,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 3,
-  },
-  // Barcode Scanner Button Styles
-  barcodeButton: {
-    marginLeft: 4,
-  },
-  barcodeIconContainer: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#EFF6FF",
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#2563EB",
   },
   bannerSection: { marginTop: 16, paddingBottom: 8 },
   bannerItem: { width: BANNER_WIDTH, height: BANNER_HEIGHT, borderRadius: 12, overflow: "hidden" },

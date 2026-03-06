@@ -21,6 +21,34 @@ const migrations: MigrationStep[] = [
             LIMIT 1`,
     apply: `ALTER TABLE medicines ADD COLUMN barcode varchar(100) DEFAULT NULL`,
   },
+  {
+    name: "Create push_tokens table",
+    check: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'push_tokens' 
+            LIMIT 1`,
+    apply: `CREATE TABLE IF NOT EXISTS push_tokens (
+      id int AUTO_INCREMENT PRIMARY KEY,
+      token varchar(255) NOT NULL UNIQUE,
+      deviceId varchar(255),
+      customerId int,
+      isAdmin boolean NOT NULL DEFAULT false,
+      createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )`,
+  },
+  {
+    name: "Create stock_alerts table",
+    check: `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES 
+            WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'stock_alerts' 
+            LIMIT 1`,
+    apply: `CREATE TABLE IF NOT EXISTS stock_alerts (
+      id int AUTO_INCREMENT PRIMARY KEY,
+      customerId int NOT NULL,
+      medicineId int NOT NULL,
+      deviceId varchar(255),
+      createdAt timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`,
+  },
 ];
 
 export async function runAutoMigrations(): Promise<void> {
