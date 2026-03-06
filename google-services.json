@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "662081018626",
+    "project_id": "alshazly-pharmacy",
+    "storage_bucket": "alshazly-pharmacy.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:662081018626:android:9d51a8d9d45da94048001b",
+        "android_client_info": {
+          "package_name": "space.manus.alshazly.pharmacy.app.t20260219092901"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCkpHp6DFocSKuquSUzWJdMawxSDkWhr64"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
