@@ -155,7 +155,7 @@ export default function HomeScreen() {
         <View style={styles.header}>
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>صيدلية الشاذلي</Text>
-            <Text style={styles.headerSubtitle}>أدويتك الموثوقة في أيدٍ أمينة</Text>
+            <Text style={styles.headerSubtitle}>الصيدلية بين إيديك</Text>
           </View>
           {/* Search Bar */}
           <View style={styles.searchContainer}>
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   },
   headerContent: { alignItems: "center", marginBottom: 12 },
   headerTitle: { fontSize: 24, fontWeight: "bold", color: "#fff", textAlign: "center" },
-  headerSubtitle: { fontSize: 13, color: "rgba(255,255,255,0.8)", marginTop: 4, textAlign: "center" },
+  headerSubtitle: { fontSize: 20, color: "rgba(255,255,255,0.9)", marginTop: 6, textAlign: "center", fontWeight: "600" },
   searchContainer: {
     flexDirection: "row", alignItems: "center", backgroundColor: "#fff",
     borderRadius: 12, paddingHorizontal: 12, height: 48,
