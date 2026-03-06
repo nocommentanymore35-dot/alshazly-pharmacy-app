@@ -48,25 +48,21 @@ export const appRouter = router({
     search: publicProcedure
       .input(z.object({ query: z.string(), deviceId: z.string().optional() }))
       .query(async ({ input }) => {
-        // Rate limiting: log search and check daily limit
         if (input.deviceId) {
           const searchCount = await db.getSearchCountToday(input.deviceId);
           if (searchCount >= DAILY_SEARCH_LIMIT) {
-            // Notify admin about excessive searching
             try {
               await notifyOwner({
                 title: "تنبيه: عمليات بحث مفرطة",
                 content: `الجهاز ${input.deviceId} تجاوز حد البحث اليومي (${DAILY_SEARCH_LIMIT} عملية). عدد عمليات البحث اليوم: ${searchCount + 1}`,
               });
             } catch (e) { console.warn("Failed to notify about rate limit:", e); }
-            // Still allow search but log the warning
           }
           await db.logSearch(input.deviceId, input.query);
         }
-        // Clean voice search text: remove punctuation, extra spaces
         const cleanQuery = input.query
-          .replace(/[.,،؟?!؛;:"'()\[\]{}]/g, '') // remove punctuation
-          .replace(/\s+/g, ' ') // normalize spaces
+          .replace(/[.,،؟?!؛;:"'()\[\]{}]/g, '')
+          .replace(/\s+/g, ' ')
           .trim();
         return db.searchMedicines(cleanQuery);
       }),
@@ -92,12 +88,9 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { id, ...data } = input;
-        
-        // Check if stock is being updated from 0 to > 0 (back in stock)
         if (data.stock !== undefined && data.stock > 0) {
           const currentMedicine = await db.getMedicineById(id);
           if (currentMedicine && currentMedicine.stock === 0) {
-            // Medicine is back in stock! Notify customers who registered for alerts
             try {
               const alertTokens = await db.getStockAlertCustomerTokens(id);
               if (alertTokens.length > 0) {
@@ -109,12 +102,10 @@ export const appRouter = router({
                   { type: "stock_alert", medicineId: id.toString() }
                 );
               }
-              // Clear alerts after sending notifications
               await db.clearStockAlertsForMedicine(id);
             } catch (e) { console.warn("Failed to send stock alert notifications:", e); }
           }
         }
-        
         const result = await db.updateMedicine(id, data);
         invalidateSearchCache();
         return result;
@@ -143,13 +134,26 @@ export const appRouter = router({
   customers: router({
     getOrCreate: publicProcedure
       .input(z.object({ deviceId: z.string() }))
-      .mutation(({ input }) => db.getOrCreateCustomer(input.deviceId)),
+      .mutation(async ({ input }) => {
+        const customer = await db.getOrCreateCustomer(input.deviceId);
+        // Auto-register a push token placeholder for this device so it appears in admin panel
+        try {
+          const fallbackToken = `device_${input.deviceId}`;
+          await db.registerPushToken(fallbackToken, input.deviceId, customer.id, false);
+          console.log(`[Push] Auto-registered fallback token for device ${input.deviceId}, customer ${customer.id}`);
+        } catch (e) {
+          // Ignore duplicate key errors - token already registered
+          if (!e?.message?.includes('Duplicate')) {
+            console.warn('[Push] Auto-register failed:', e?.message);
+          }
+        }
+        return customer;
+      }),
     update: publicProcedure
       .input(z.object({ deviceId: z.string(), fullName: z.string().optional(), phone: z.string().optional(), address: z.string().optional() }))
       .mutation(async ({ input }) => {
         const { deviceId, ...data } = input;
         await db.updateCustomer(deviceId, data);
-        // Notify admin about new customer profile submission
         if (data.fullName && data.phone) {
           try {
             await notifyOwner({
@@ -157,7 +161,6 @@ export const appRouter = router({
               content: `عميل جديد أضاف بياناته:\nالاسم: ${data.fullName}\nالهاتف: ${data.phone}\nالعنوان: ${data.address || "غير محدد"}\n\nيرجى الموافقة عليه من لوحة الإدارة.`,
             });
           } catch (e) { console.warn("Failed to notify about new customer:", e); }
-          // Send push notification to admin
           try {
             const adminTokens = await db.getAdminPushTokens();
             await notifyAdminNewCustomer(adminTokens, data.fullName, data.phone);
@@ -168,21 +171,16 @@ export const appRouter = router({
     get: publicProcedure
       .input(z.object({ deviceId: z.string() }))
       .query(({ input }) => db.getCustomerByDeviceId(input.deviceId)),
-    // Admin: list all customers
     listAll: publicProcedure.query(() => db.getAllCustomers()),
-    // Admin: approve customer
     approve: publicProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => db.approveCustomer(input.id)),
-    // Admin: reject customer
     reject: publicProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => db.rejectCustomer(input.id)),
-    // Admin: toggle active status
     toggleActive: publicProcedure
       .input(z.object({ id: z.number(), isActive: z.boolean() }))
       .mutation(({ input }) => db.toggleCustomerActive(input.id, input.isActive)),
-    // Admin: delete customer
     delete: publicProcedure
       .input(z.object({ id: z.number() }))
       .mutation(({ input }) => db.deleteCustomer(input.id)),
@@ -207,17 +205,11 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { items, ...orderData } = input;
-        
-        // Step 1: Validate stock availability
         const stockCheck = await db.validateOrderStock(items);
         if (!stockCheck.valid) {
           throw new Error(stockCheck.errors.join('\n'));
         }
-        
-        // Step 2: Create the order
-        const orderId = await db.createOrder(orderData as any, items.map(i => ({ ...i, orderId: 0 })));
-        
-        // Step 3: Deduct stock automatically
+        const orderId = await db.createOrder(orderData, items.map(i => ({ ...i, orderId: 0 })));
         try {
           await db.deductStock(items.map(i => ({ medicineId: i.medicineId, quantity: i.quantity })));
         } catch (e) { console.warn("Failed to deduct stock:", e); }
@@ -227,12 +219,10 @@ export const appRouter = router({
             content: `طلب جديد من ${input.customerName}\nالهاتف: ${input.customerPhone}\nالعنوان: ${input.customerAddress}\nالمبلغ: ${input.totalAmount} ج.م\nطريقة الدفع: ${input.paymentMethod === "cash" ? "الدفع عند الاستلام" : "فودافون كاش"}`,
           });
         } catch (e) { console.warn("Failed to notify owner:", e); }
-        // Send push notification to admin
         try {
           const adminTokens = await db.getAdminPushTokens();
           await notifyAdminNewOrder(adminTokens, orderId, input.customerName, input.totalAmount, input.paymentMethod);
         } catch (e) { console.warn("Failed to send push to admin:", e); }
-        // Check for low stock after order and notify admin
         try {
           const lowStockItems = await db.getLowStockMedicines(5);
           if (lowStockItems.length > 0) {
@@ -256,7 +246,6 @@ export const appRouter = router({
       .input(z.object({ id: z.number(), status: z.enum(["received", "preparing", "shipped", "delivered"]), customerId: z.number().optional() }))
       .mutation(async ({ input }) => {
         await db.updateOrderStatus(input.id, input.status);
-        // Send push notification to customer about status change
         if (input.customerId) {
           try {
             const customerTokens = await db.getCustomerPushTokens(input.customerId);
@@ -291,24 +280,19 @@ export const appRouter = router({
   reports: router({
     sales: publicProcedure.query(() => db.getSalesReport()),
     reset: publicProcedure.mutation(() => db.resetSalesReport()),
-    // Top searchers today
     topSearchers: publicProcedure.query(() => db.getTopSearchersToday()),
-    // Most ordered medicines
     mostOrdered: publicProcedure
       .input(z.object({ limit: z.number().optional() }).optional())
       .query(({ input }) => db.getMostOrderedMedicines(input?.limit ?? 10)),
-    // Low stock alert
     lowStock: publicProcedure
       .input(z.object({ threshold: z.number().optional() }).optional())
       .query(({ input }) => db.getLowStockMedicines(input?.threshold ?? 5)),
-    // Daily orders report
     daily: publicProcedure
       .input(z.object({ date: z.string().optional() }).optional())
       .query(({ input }) => {
         const date = input?.date ? new Date(input.date) : undefined;
         return db.getDailyOrdersReport(date);
       }),
-    // Advanced statistics
     advancedStats: publicProcedure.query(() => db.getAdvancedStats()),
   }),
 
@@ -320,14 +304,13 @@ export const appRouter = router({
     set: publicProcedure
       .input(z.object({ key: z.string(), value: z.string() }))
       .mutation(({ input }) => db.setSetting(input.key, input.value)),
-    // Loyalty program toggle
     isLoyaltyEnabled: publicProcedure.query(() => db.isLoyaltyEnabled()),
     toggleLoyalty: publicProcedure
       .input(z.object({ enabled: z.boolean() }))
       .mutation(({ input }) => db.setSetting("loyalty_enabled", input.enabled ? "true" : "false")),
   }),
 
-  // Voice Search (Speech-to-Text) - supports both URL and base64
+  // Voice Search
   voice: router({
     transcribe: publicProcedure
       .input(z.object({ audioUrl: z.string().optional(), audioBase64: z.string().optional() }))
@@ -339,9 +322,9 @@ export const appRouter = router({
             prompt: "بحث عن أدوية صيدلية",
           });
           if ("error" in result) {
-            return { text: "", error: (result as any).error };
+            return { text: "", error: result.error };
           }
-          return { text: (result as any).text };
+          return { text: result.text };
         } else if (input.audioUrl) {
           const { transcribeAudio } = await import("./_core/voiceTranscription");
           const result = await transcribeAudio({
@@ -350,9 +333,9 @@ export const appRouter = router({
             prompt: "بحث عن أدوية صيدلية",
           });
           if ("error" in result) {
-            return { text: "", error: (result as any).error };
+            return { text: "", error: result.error };
           }
-          return { text: (result as any).text };
+          return { text: result.text };
         }
         return { text: "", error: "No audio data provided" };
       }),
@@ -366,9 +349,7 @@ export const appRouter = router({
     remove: publicProcedure
       .input(z.object({ token: z.string() }))
       .mutation(({ input }) => db.removePushToken(input.token)),
-    // Get registered device count
     count: publicProcedure.query(() => db.getPushTokenCount()),
-    // Send broadcast notification to all users or customers only
     sendBroadcast: publicProcedure
       .input(z.object({
         title: z.string().min(1, "عنوان الإشعار مطلوب"),
@@ -377,7 +358,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { sendPushNotifications } = await import("./pushNotifications");
-        let tokens: string[] = [];
+        let tokens = [];
         if (input.target === "all") {
           tokens = await db.getAllPushTokens();
         } else if (input.target === "customers") {
@@ -393,9 +374,8 @@ export const appRouter = router({
       }),
   }),
 
-  // Stock Alerts (Notify When Available)
+  // Stock Alerts
   stockAlerts: router({
-    // Register alert - customer wants notification when medicine is back in stock
     register: publicProcedure
       .input(z.object({ customerId: z.number(), medicineId: z.number(), deviceId: z.string().optional() }))
       .mutation(async ({ input }) => {
@@ -405,41 +385,34 @@ export const appRouter = router({
         }
         return { success: true, message: "سيتم إعلامك عند توفر هذا الصنف" };
       }),
-    // Remove alert
     remove: publicProcedure
       .input(z.object({ customerId: z.number(), medicineId: z.number() }))
       .mutation(async ({ input }) => {
         await db.removeStockAlert(input.customerId, input.medicineId);
         return { success: true };
       }),
-    // Check if customer has alert for a medicine
     check: publicProcedure
       .input(z.object({ customerId: z.number(), medicineId: z.number() }))
       .query(({ input }) => db.hasStockAlert(input.customerId, input.medicineId)),
-    // Get alert count for a medicine (admin)
     count: publicProcedure
       .input(z.object({ medicineId: z.number() }))
       .query(({ input }) => db.getStockAlertCount(input.medicineId)),
-    // Get all alerts with customer details (admin)
     listAll: publicProcedure
       .query(() => db.getAllStockAlertsWithDetails()),
   }),
 
   // Database Backup
   backup: router({
-    // Create manual backup
     create: publicProcedure.mutation(async () => {
       const { performAutoBackup } = await import("./backup");
       const result = await performAutoBackup();
       if (!result.success) throw new Error(result.error || "فشل إنشاء النسخة الاحتياطية");
       return { success: true, url: result.url, message: "تم إنشاء النسخة الاحتياطية بنجاح" };
     }),
-    // List available backups
     list: publicProcedure.query(async () => {
       const { listBackups } = await import("./backup");
       return listBackups();
     }),
-    // Export data as JSON (download)
     export: publicProcedure.query(async () => {
       const { exportAllData } = await import("./backup");
       const data = await exportAllData();
@@ -453,7 +426,6 @@ export const appRouter = router({
         },
       };
     }),
-    // Restore from backup URL
     restore: publicProcedure
       .input(z.object({ url: z.string() }))
       .mutation(async ({ input }) => {
