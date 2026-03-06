@@ -248,6 +248,19 @@ function OrdersManagement() {
                 الدفع: {order.paymentMethod === "cash" ? "عند الاستلام" : "فودافون كاش"}
               </Text>
             </View>
+            {/* Order Items */}
+            {order.items && order.items.length > 0 && (
+              <View style={{ marginTop: 8, padding: 8, backgroundColor: "#f0f4ff", borderRadius: 8 }}>
+                <Text style={{ fontSize: 14, fontWeight: "700", color: "#1e3a5f", marginBottom: 6 }}>تفاصيل الأصناف:</Text>
+                {order.items.map((item: any, idx: number) => (
+                  <View key={idx} style={{ flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 3, borderBottomWidth: idx < order.items.length - 1 ? 1 : 0, borderBottomColor: "#ddd" }}>
+                    <Text style={{ fontSize: 13, color: "#333", flex: 1, textAlign: "right" }}>{item.medicineName || item.name || "صنف"}</Text>
+                    <Text style={{ fontSize: 13, color: "#555", marginHorizontal: 8 }}>x{item.quantity}</Text>
+                    <Text style={{ fontSize: 13, color: "#1e3a5f", fontWeight: "600" }}>{parseFloat(item.price || 0).toFixed(2)} ج.م</Text>
+                  </View>
+                ))}
+              </View>
+            )}
             <View style={styles.statusButtons}>
               {STATUS_OPTIONS.map((s) => (
                 <Pressable
