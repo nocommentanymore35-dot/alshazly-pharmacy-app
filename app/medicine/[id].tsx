@@ -88,6 +88,9 @@ export default function MedicineDetailScreen() {
   const totalPrice = currentUnitPrice * quantity;
 
   const isOutOfStock = (medicine.stock ?? 0) <= 0;
+  // حساب أقصى كمية يمكن طلبها حسب نوع الوحدة
+  const stockCount = medicine.stock ?? 0;
+  const maxQuantity = unitType === "strip" ? stockCount * stripsPerBox : stockCount;
 
   const handleAddToCart = () => {
     if (isOutOfStock) {
@@ -135,6 +138,11 @@ export default function MedicineDetailScreen() {
       setQuantity(1);
     }
   };
+
+  // إذا تجاوزت الكمية الحد الأقصى (مثلاً بعد تغيير الوحدة) نعيد ضبطها
+  if (medicine && quantity > maxQuantity && maxQuantity > 0) {
+    setQuantity(maxQuantity);
+  }
 
   return (
     <ScreenContainer edges={["top", "left", "right"]} containerClassName="bg-white">
@@ -278,14 +286,18 @@ export default function MedicineDetailScreen() {
               </Pressable>
               <Text style={styles.qtyText}>{quantity}</Text>
               <Pressable
-                onPress={() => setQuantity(q => q + 1)}
-                style={({ pressed }) => [styles.qtyBtn, pressed && { opacity: 0.7 }]}
+                onPress={() => setQuantity(q => Math.min(q + 1, maxQuantity))}
+                disabled={quantity >= maxQuantity}
+                style={({ pressed }) => [styles.qtyBtn, quantity >= maxQuantity && { opacity: 0.4 }, pressed && { opacity: 0.7 }]}
               >
-                <MaterialIcons name="add" size={20} color="#2563EB" />
+                <MaterialIcons name="add" size={20} color={quantity >= maxQuantity ? "#9CA3AF" : "#2563EB"} />
               </Pressable>
             </View>
             <Text style={styles.unitLabel}>
               {getUnitLabel(unitType, quantity)}
+            </Text>
+            <Text style={{ fontSize: 11, color: "#6B7280", textAlign: "center" }}>
+              (الحد الأقصى: {maxQuantity})
             </Text>
           </View>
 
