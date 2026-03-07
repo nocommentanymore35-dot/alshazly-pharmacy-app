@@ -412,19 +412,23 @@ function MedicinesManagement() {
     }
     try {
       if (editId) {
+        const stripsPerBox = parseInt(strips) || 1;
+        const stockInStrips = (parseInt(stock) || 0) * stripsPerBox;
         await updateMutation.mutateAsync({
           id: editId, nameAr: nameAr.trim(), nameEn: nameEn.trim(),
           price: price.trim(), descriptionAr: descAr.trim(),
-          categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
-          strips: parseInt(strips) || 1,
+          categoryId: parseInt(categoryId), stock: stockInStrips,
+          strips: stripsPerBox,
           imageUrl: imageUrl.trim() || undefined,
         });
       } else {
+        const stripsPerBox = parseInt(strips) || 1;
+        const stockInStrips = (parseInt(stock) || 0) * stripsPerBox;
         await createMutation.mutateAsync({
           nameAr: nameAr.trim(), nameEn: nameEn.trim(),
           price: price.trim(), descriptionAr: descAr.trim(),
-          categoryId: parseInt(categoryId), stock: parseInt(stock) || 0,
-          strips: parseInt(strips) || 1,
+          categoryId: parseInt(categoryId), stock: stockInStrips,
+          strips: stripsPerBox,
           imageUrl: imageUrl.trim() || undefined,
         });
       }
@@ -444,7 +448,9 @@ function MedicinesManagement() {
     setStrips(med.strips?.toString() ?? "1");
     setDescAr(med.descriptionAr ?? "");
     setCategoryId(med.categoryId.toString());
-    setStock(med.stock?.toString() ?? "0");
+    const stripsVal = med.strips || 1;
+    const stockInBoxes = Math.floor((med.stock || 0) / stripsVal);
+    setStock(stockInBoxes.toString());
     setImageUrl(med.imageUrl ?? "");
     setShowForm(true);
   };
@@ -496,7 +502,7 @@ function MedicinesManagement() {
             ))}
           </ScrollView>
 
-          <TextInput style={styles.formInput} placeholder="المخزون (إجمالي الشرائط) *" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
+          <TextInput style={styles.formInput} placeholder="المخزون (عدد العلب) *" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
           {/* Image Upload Section */}
           <ImagePickerButton
             currentImageUrl={imageUrl}
