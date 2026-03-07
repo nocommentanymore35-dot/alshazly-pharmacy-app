@@ -27,7 +27,7 @@ export default function ProfileScreen() {
 
   const ordersQuery = trpc.orders.byCustomer.useQuery(
     { customerId: state.customerId! },
-    { enabled: !!state.customerId }
+    { enabled: !!state.customerId, refetchInterval: 10000 }
   );
 
   useEffect(() => {
