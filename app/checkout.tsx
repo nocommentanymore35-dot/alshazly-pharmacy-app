@@ -42,6 +42,8 @@ export default function CheckoutScreen() {
             medicineName: `${item.nameAr} (${item.quantity} ${unitLabel})`,
             quantity: item.quantity,
             price: calcItemTotal(item).toFixed(2),
+            unitType: unitType as "box" | "strip",
+            stripsPerBox,
           };
         }),
       });

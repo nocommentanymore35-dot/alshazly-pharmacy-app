@@ -87,6 +87,8 @@ export const orderItems = mysqlTable("order_items", {
   medicineName: varchar("medicineName", { length: 255 }).notNull(),
   quantity: int("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  unitType: varchar("unitType", { length: 10 }).default("box"),
+  stripsPerBox: int("stripsPerBox").default(1),
 });
 
 // Admin credentials table

@@ -460,7 +460,7 @@ export async function deleteCustomer(id: number) {
 // ===== ORDER FUNCTIONS =====
 
 // Check stock availability before placing order
-export async function validateOrderStock(items: { medicineId: number; medicineName: string; quantity: number }[]): Promise<{ valid: boolean; errors: string[] }> {
+export async function validateOrderStock(items: { medicineId: number; medicineName: string; quantity: number; unitType?: string; stripsPerBox?: number }[]): Promise<{ valid: boolean; errors: string[] }> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   const errors: string[] = [];
@@ -469,11 +469,19 @@ export async function validateOrderStock(items: { medicineId: number; medicineNa
     const med = await db.select().from(medicines).where(eq(medicines.id, item.medicineId)).limit(1);
     if (med.length === 0) {
       errors.push(`الصنف "${item.medicineName}" غير موجود`);
-    } else if (med[0].stock !== null && med[0].stock !== undefined && med[0].stock < item.quantity) {
-      if (med[0].stock === 0) {
-        errors.push(`الصنف "${item.medicineName}" غير متوفر حالياً`);
-      } else {
-        errors.push(`الصنف "${item.medicineName}" - الكمية المطلوبة (${item.quantity}) أكبر من المتوفر (${med[0].stock})`);
+    } else if (med[0].stock !== null && med[0].stock !== undefined) {
+      // حساب الكمية المطلوبة بالعلب
+      let requiredBoxes = item.quantity;
+      if (item.unitType === "strip" && item.stripsPerBox && item.stripsPerBox > 0) {
+        requiredBoxes = Math.ceil(item.quantity / item.stripsPerBox);
+      }
+      if (med[0].stock < requiredBoxes) {
+        if (med[0].stock === 0) {
+          errors.push(`الصنف "${item.medicineName}" غير متوفر حالياً`);
+        } else {
+          const unitLabel = item.unitType === "strip" ? "شريط" : "علبة";
+          errors.push(`الصنف "${item.medicineName}" - الكمية المطلوبة (${item.quantity} ${unitLabel}) أكبر من المتوفر (${med[0].stock} علبة)`);
+        }
       }
     }
   }

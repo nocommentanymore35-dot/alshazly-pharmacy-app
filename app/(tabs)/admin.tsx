@@ -324,13 +324,23 @@ function OrdersManagement() {
             {order.items && order.items.length > 0 && (
               <View style={{ marginTop: 8, padding: 8, backgroundColor: "#f0f4ff", borderRadius: 8 }}>
                 <Text style={{ fontSize: 14, fontWeight: "700", color: "#1e3a5f", marginBottom: 6 }}>تفاصيل الأصناف:</Text>
-                {order.items.map((item: any, idx: number) => (
-                  <View key={idx} style={{ flexDirection: "row-reverse", justifyContent: "space-between", paddingVertical: 3, borderBottomWidth: idx < order.items.length - 1 ? 1 : 0, borderBottomColor: "#ddd" }}>
-                    <Text style={{ fontSize: 13, color: "#333", flex: 1, textAlign: "right" }}>{item.medicineName || item.name || "صنف"}</Text>
-                    <Text style={{ fontSize: 13, color: "#555", marginHorizontal: 8 }}>x{item.quantity}</Text>
-                    <Text style={{ fontSize: 13, color: "#1e3a5f", fontWeight: "600" }}>{parseFloat(item.price || 0).toFixed(2)} ج.م</Text>
-                  </View>
-                ))}
+                {order.items.map((item: any, idx: number) => {
+                  const unitType = item.unitType || "box";
+                  const unitLabel = unitType === "strip" 
+                    ? (item.quantity === 1 ? "شريط" : item.quantity === 2 ? "شريطين" : `${item.quantity} شرائط`)
+                    : (item.quantity === 1 ? "علبة" : item.quantity === 2 ? "علبتين" : `${item.quantity} علب`);
+                  // استخراج اسم الصنف بدون الأقواس
+                  const displayName = (item.medicineName || item.name || "صنف").replace(/\s*\(.*\)\s*$/, '');
+                  return (
+                    <View key={idx} style={{ flexDirection: "row-reverse", justifyContent: "space-between", alignItems: "center", paddingVertical: 3, borderBottomWidth: idx < order.items.length - 1 ? 1 : 0, borderBottomColor: "#ddd" }}>
+                      <Text style={{ fontSize: 13, color: "#333", flex: 1, textAlign: "right" }}>{displayName}</Text>
+                      <View style={{ backgroundColor: unitType === "strip" ? "#FEF3C7" : "#DBEAFE", paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, marginHorizontal: 4 }}>
+                        <Text style={{ fontSize: 11, color: unitType === "strip" ? "#92400E" : "#1E40AF", fontWeight: "600" }}>{unitLabel}</Text>
+                      </View>
+                      <Text style={{ fontSize: 13, color: "#1e3a5f", fontWeight: "600" }}>{parseFloat(item.price || 0).toFixed(2)} ج.م</Text>
+                    </View>
+                  );
+                })}
               </View>
             )}
             <View style={styles.statusButtons}>

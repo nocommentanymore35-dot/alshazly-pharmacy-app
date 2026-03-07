@@ -192,6 +192,8 @@ export const appRouter = router({
           medicineName: z.string(),
           quantity: z.number(),
           price: z.string(),
+          unitType: z.enum(["box", "strip"]).default("box"),
+          stripsPerBox: z.number().default(1),
         })),
       }))
       .mutation(async ({ input }) => {
@@ -202,7 +204,16 @@ export const appRouter = router({
         }
         const orderId = await db.createOrder(orderData, items.map(i => ({ ...i, orderId: 0 })));
         try {
-          await db.deductStock(items.map(i => ({ medicineId: i.medicineId, quantity: i.quantity })));
+          // حساب الكمية بالعلب لخصم المخزون بشكل صحيح
+          const stockDeductions = items.map(i => {
+            let boxQuantity = i.quantity;
+            if (i.unitType === "strip" && i.stripsPerBox > 0) {
+              // تحويل الشرائط إلى علب (مع التقريب لأعلى)
+              boxQuantity = Math.ceil(i.quantity / i.stripsPerBox);
+            }
+            return { medicineId: i.medicineId, quantity: boxQuantity };
+          });
+          await db.deductStock(stockDeductions);
         } catch (e) { console.warn("Failed to deduct stock:", e); }
         try {
           await notifyOwner({
