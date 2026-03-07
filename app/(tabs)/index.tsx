@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 24,
   },
   headerContent: { alignItems: "center", marginBottom: 12 },
-  headerTitle: { fontSize: 24, fontWeight: "bold", color: "#fff", textAlign: "center" },
+  headerTitle: { fontSize: 28, fontWeight: "bold", color: "#fff", textAlign: "center" },
   headerSubtitle: { fontSize: 20, color: "rgba(255,255,255,0.9)", marginTop: 6, textAlign: "center", fontWeight: "600" },
   searchContainer: {
     flexDirection: "row", alignItems: "center", backgroundColor: "#fff",
