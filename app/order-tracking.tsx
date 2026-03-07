@@ -99,17 +99,28 @@ export default function OrderTrackingScreen() {
           {/* Order Items */}
           <View style={styles.itemsSection}>
             <Text style={styles.sectionTitle}>تفاصيل الطلب</Text>
-            {items.map((item: any) => (
-              <View key={item.id} style={styles.orderItem}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName}>{item.medicineName}</Text>
-                  <Text style={styles.itemQty}>الكمية: {item.quantity}</Text>
+            {items.map((item: any) => {
+              const unitType = item.unitType || "box";
+              const unitLabel = unitType === "strip" 
+                ? (item.quantity === 1 ? "شريط" : item.quantity === 2 ? "شريطين" : `${item.quantity} شرائط`)
+                : (item.quantity === 1 ? "علبة" : item.quantity === 2 ? "علبتين" : `${item.quantity} علب`);
+              const displayName = (item.medicineName || "صنف").replace(/\s*\(.*\)\s*$/, '');
+              return (
+                <View key={item.id} style={styles.orderItem}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemName}>{displayName}</Text>
+                    <View style={{ flexDirection: "row-reverse", alignItems: "center", gap: 6, marginTop: 4 }}>
+                      <View style={{ backgroundColor: unitType === "strip" ? "#FEF3C7" : "#DBEAFE", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6 }}>
+                        <Text style={{ fontSize: 11, fontWeight: "600", color: unitType === "strip" ? "#92400E" : "#1E40AF" }}>{unitLabel}</Text>
+                      </View>
+                    </View>
+                  </View>
+                  <Text style={styles.itemPrice}>
+                    {parseFloat(item.price).toFixed(2)} ج.م
+                  </Text>
                 </View>
-                <Text style={styles.itemPrice}>
-                  {(parseFloat(item.price) * item.quantity).toFixed(2)} ج.م
-                </Text>
-              </View>
-            ))}
+              );
+            })}
             {order && (
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>الإجمالي</Text>
