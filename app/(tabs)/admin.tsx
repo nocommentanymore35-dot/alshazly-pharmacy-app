@@ -6,12 +6,15 @@ import {
 import { Image } from "expo-image";
 import { Audio } from "expo-av";
 import * as Haptics from "expo-haptics";
+import * as SecureStore from "expo-secure-store";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAppStore } from "@/lib/store";
 import { trpc } from "@/lib/trpc";
 import { Pressable } from "react-native";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import ImagePickerButton from "@/components/ImagePickerButton";
+
+const ADMIN_CREDENTIALS_KEY = "admin_credentials";
 
 type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "notifications" | "stockAlerts" | "settings";
 
@@ -34,6 +37,7 @@ export default function AdminScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [logging, setLogging] = useState(false);
+  const [autoLogging, setAutoLogging] = useState(true);
   const [activeTab, setActiveTab] = useState<AdminTab>("orders");
 
   const loginMutation = trpc.admin.login.useMutation();
@@ -41,6 +45,34 @@ export default function AdminScreen() {
 
   useEffect(() => {
     setupMutation.mutate({ username: "admin", password: "admin123" });
+  }, []);
+
+  // تحميل بيانات الدخول المحفوظة وتسجيل الدخول تلقائياً
+  useEffect(() => {
+    const autoLogin = async () => {
+      try {
+        const saved = await SecureStore.getItemAsync(ADMIN_CREDENTIALS_KEY);
+        if (saved) {
+          const { username: savedUser, password: savedPass } = JSON.parse(saved);
+          setUsername(savedUser);
+          setPassword(savedPass);
+          // محاولة تسجيل الدخول تلقائياً
+          const result = await loginMutation.mutateAsync({ username: savedUser, password: savedPass });
+          if (result) {
+            setAdminLoggedIn(true);
+          } else {
+            // البيانات المحفوظة لم تعد صحيحة
+            await SecureStore.deleteItemAsync(ADMIN_CREDENTIALS_KEY);
+            setUsername("");
+            setPassword("");
+          }
+        }
+      } catch (e) {
+        // تجاهل الخطأ - المستخدم سيدخل يدوياً
+      }
+      setAutoLogging(false);
+    };
+    autoLogin();
   }, []);
 
   const handleLogin = async () => {
@@ -52,6 +84,11 @@ export default function AdminScreen() {
     try {
       const result = await loginMutation.mutateAsync({ username: username.trim(), password: password.trim() });
       if (result) {
+        // حفظ بيانات الدخول بشكل مشفّر على الجهاز
+        await SecureStore.setItemAsync(ADMIN_CREDENTIALS_KEY, JSON.stringify({
+          username: username.trim(),
+          password: password.trim(),
+        }));
         setAdminLoggedIn(true);
       } else {
         Alert.alert("خطأ", "اسم المستخدم أو كلمة المرور غير صحيحة");
@@ -63,6 +100,23 @@ export default function AdminScreen() {
   };
 
   if (!state.isAdminLoggedIn) {
+    // عرض شاشة تحميل أثناء تسجيل الدخول التلقائي
+    if (autoLogging) {
+      return (
+        <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
+          <View style={styles.container}>
+            <View style={styles.header}>
+              <Text style={styles.headerTitle}>لوحة الإدارة</Text>
+            </View>
+            <View style={[styles.loginContainer, { justifyContent: "center" }]}>
+              <ActivityIndicator size="large" color="#2563EB" />
+              <Text style={{ fontSize: 16, color: "#6B7280", marginTop: 16, textAlign: "center" }}>جاري تسجيل الدخول تلقائياً...</Text>
+            </View>
+          </View>
+        </ScreenContainer>
+      );
+    }
+
     return (
       <ScreenContainer edges={["left", "right"]} containerClassName="bg-[#2563EB]">
         <View style={styles.container}>
@@ -133,7 +187,10 @@ export default function AdminScreen() {
         <View style={styles.headerCompact}>
           <Text style={styles.headerTitleCompact}>لوحة الإدارة</Text>
           <Pressable
-            onPress={() => { setAdminLoggedIn(false); setUsername(""); setPassword(""); }}
+            onPress={async () => {
+              await SecureStore.deleteItemAsync(ADMIN_CREDENTIALS_KEY);
+              setAdminLoggedIn(false); setUsername(""); setPassword("");
+            }}
             style={({ pressed }) => [pressed && { opacity: 0.7 }]}
           >
             <Text style={styles.logoutText}>خروج</Text>
