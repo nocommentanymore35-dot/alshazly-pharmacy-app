@@ -35,16 +35,20 @@ export function PushNotificationRegistrar() {
       Notifications.setNotificationChannelAsync("default", {
         name: "Default",
         importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#2196F3",
+        vibrationPattern: [0, 500, 200, 500, 200, 500],
+        lightColor: "#FF0000",
         sound: "default",
+        enableVibrate: true,
+        showBadge: true,
       });
       Notifications.setNotificationChannelAsync("orders", {
         name: "الطلبات",
         importance: Notifications.AndroidImportance.MAX,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#2196F3",
+        vibrationPattern: [0, 1000, 200, 1000, 200, 1000],
+        lightColor: "#FF0000",
         sound: "default",
+        enableVibrate: true,
+        showBadge: true,
       });
     }
   }, []);
