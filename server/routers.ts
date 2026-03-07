@@ -375,8 +375,12 @@ export const appRouter = router({
         if (tokens.length === 0) {
           return { success: false, sent: 0, message: "لا يوجد أجهزة مسجلة لاستقبال الإشعارات" };
         }
-        await sendPushNotifications(tokens, input.title, input.body, { type: "broadcast" });
-        return { success: true, sent: tokens.length, message: `تم إرسال الإشعار إلى ${tokens.length} جهاز` };
+        const result = await sendPushNotifications(tokens, input.title, input.body, { type: "broadcast" });
+        if (result.validTokens === 0) {
+          return { success: false, sent: 0, message: `يوجد ${result.totalTokens} جهاز مسجل لكن لا يوجد منها توكنات صالحة. يجب أن يفتح العميل التطبيق ويوافق على إذن الإشعارات.` };
+        }
+        const errorInfo = result.errors.length > 0 ? `\n(${result.errors.length} أخطاء)` : "";
+        return { success: true, sent: result.sentCount, message: `تم إرسال الإشعار إلى ${result.sentCount} جهاز من أصل ${result.totalTokens}${errorInfo}` };
       }),
   }),
 
