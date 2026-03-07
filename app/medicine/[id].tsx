@@ -262,11 +262,11 @@ export default function MedicineDetailScreen() {
             )}
           </Animated.View>
 
-          <View style={{ height: 140 }} />
+          <View style={{ height: 180 }} />
         </ScrollView>
 
         {/* Bottom Action Bar with slide-up animation */}
-        <Animated.View entering={SlideInDown.delay(400).duration(500).springify()} style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) + 56, marginTop: 24 }]}>
+        <Animated.View entering={SlideInDown.delay(400).duration(500).springify()} style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 20) }]}>
           {/* Quantity Selector with unit label */}
           <View style={styles.quantitySection}>
             <View style={styles.quantityContainer}>
