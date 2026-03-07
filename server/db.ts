@@ -17,11 +17,27 @@ import {
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+let _migrationDone = false;
+
+async function runAutoMigrations(db: ReturnType<typeof drizzle>) {
+  if (_migrationDone) return;
+  _migrationDone = true;
+  try {
+    // Add unitType column to order_items if not exists
+    await db.execute(sql`ALTER TABLE order_items ADD COLUMN unitType VARCHAR(10) DEFAULT 'box'`).catch(() => {});
+    // Add stripsPerBox column to order_items if not exists
+    await db.execute(sql`ALTER TABLE order_items ADD COLUMN stripsPerBox INT DEFAULT 1`).catch(() => {});
+    console.log("[Database] Auto-migration check completed");
+  } catch (e) {
+    console.warn("[Database] Auto-migration skipped:", e);
+  }
+}
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
       _db = drizzle(process.env.DATABASE_URL);
+      await runAutoMigrations(_db);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
