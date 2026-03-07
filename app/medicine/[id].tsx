@@ -193,7 +193,7 @@ export default function MedicineDetailScreen() {
             }}>
               <MaterialIcons name={(medicine.stock ?? 0) > 0 ? "check-circle" : "cancel"} size={14} color="#fff" />
               <Text style={{ fontSize: 12, color: "#fff", fontWeight: "bold" }}>
-                {isOutOfStock ? "غير متوفر" : `متوفر: ${stockDisplayText}`}
+                {isOutOfStock ? "غير متوفر" : "متوفر"}
               </Text>
             </View>
           </Animated.View>
