@@ -92,6 +92,8 @@ export default function MedicineDetailScreen() {
   const totalStrips = medicine.stock ?? 0;
   // حساب أقصى كمية يمكن طلبها حسب نوع الوحدة
   const maxQuantity = unitType === "strip" ? totalStrips : Math.floor(totalStrips / stripsPerBox);
+  // هل الرصيد لا يكفي لعلبة كاملة؟
+  const notEnoughForBox = unitType === "box" && maxQuantity <= 0 && totalStrips > 0;
   // عرض المخزون كـ X علبة + Y شريط
   const stockBoxes = Math.floor(totalStrips / stripsPerBox);
   const stockRemainStrips = totalStrips % stripsPerBox;
@@ -105,6 +107,10 @@ export default function MedicineDetailScreen() {
   const handleAddToCart = () => {
     if (isOutOfStock) {
       Alert.alert("غير متوفر", "هذا الصنف غير متوفر حالياً");
+      return;
+    }
+    if (notEnoughForBox) {
+      Alert.alert("الرصيد لا يكفي", `الرصيد المتبقي ${stockDisplayText} فقط ولا يكفي لعلبة كاملة (${stripsPerBox} شرائط). يمكنك الشراء بالشريط بدلاً من ذلك.`);
       return;
     }
     addToCart({
@@ -314,18 +320,19 @@ export default function MedicineDetailScreen() {
           {/* Add to Cart Button with Bounce Animation */}
           <BounceButton
             onPress={handleAddToCart}
-            disabled={isInCart(medicine.id) || isOutOfStock}
+            disabled={isInCart(medicine.id) || isOutOfStock || notEnoughForBox}
             style={[
               styles.addToCartBtn,
-              (isInCart(medicine.id) || isOutOfStock) && styles.addToCartBtnDisabled,
+              (isInCart(medicine.id) || isOutOfStock || notEnoughForBox) && styles.addToCartBtnDisabled,
               isOutOfStock && { backgroundColor: "#DC2626", opacity: 0.7 },
+              notEnoughForBox && { backgroundColor: "#F59E0B", opacity: 0.85 },
             ]}
           >
-            <MaterialIcons name={isOutOfStock ? "remove-shopping-cart" : "shopping-cart"} size={24} color="#fff" />
+            <MaterialIcons name={isOutOfStock ? "remove-shopping-cart" : notEnoughForBox ? "warning" : "shopping-cart"} size={24} color="#fff" />
             <Text style={styles.addToCartText}>
-              {isOutOfStock ? "غير متوفر حالياً" : isInCart(medicine.id) ? "في السلة" : "إضافة للسلة"}
+              {isOutOfStock ? "غير متوفر حالياً" : notEnoughForBox ? "الرصيد لا يكفي لعلبة - اشترِ بالشريط" : isInCart(medicine.id) ? "في السلة" : "إضافة للسلة"}
             </Text>
-            {!isOutOfStock && (
+            {!isOutOfStock && !notEnoughForBox && (
               <Text style={styles.addToCartPrice}>
                 {totalPrice.toFixed(2)} ج.م
               </Text>
