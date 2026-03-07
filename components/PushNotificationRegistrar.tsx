@@ -18,14 +18,14 @@ Notifications.setNotificationHandler({
 /**
  * Registers push notification token with the server.
  * Uses direct fetch() instead of tRPC to avoid any serialization issues.
- * Has multiple fallback mechanisms for token acquisition.
+ * NEVER registers fallback/fake tokens - only real Expo Push Tokens.
+ * Retries on every app open until a real token is registered.
  */
 export function PushNotificationRegistrar() {
   const { state } = useAppStore();
   const deviceId = state.deviceId;
   const customerId = state.customerId;
   const isAdminLoggedIn = state.isAdminLoggedIn;
-  const hasRegistered = useRef(false);
   const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Setup Android notification channels
@@ -53,25 +53,21 @@ export function PushNotificationRegistrar() {
     }
   }, []);
 
-  // Register push token - waits for deviceId to be available
+  // Register push token - tries EVERY time the app opens (no hasRegistered flag)
   useEffect(() => {
     if (Platform.OS === "web") return;
     if (!deviceId) return; // Wait until deviceId is set
-    if (hasRegistered.current) return;
-
-    hasRegistered.current = true;
 
     async function registerPushToken() {
       let token: string | null = null;
       let attempt = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 5;
 
       while (attempt < maxAttempts && !token) {
         attempt++;
         console.log(`[Push] Attempt ${attempt}/${maxAttempts} to get push token...`);
 
         try {
-          // Step 1: Try to get Expo Push Token
           if (Device.isDevice) {
             // Check permissions
             const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -89,20 +85,23 @@ export function PushNotificationRegistrar() {
                 console.log("[Push] Got Expo push token:", token);
               } catch (expoErr: any) {
                 console.warn("[Push] Expo token failed:", expoErr?.message);
-                // Try native token
+                // Try native token as last resort
                 try {
                   const deviceToken = await Notifications.getDevicePushTokenAsync();
-                  token = `native_${deviceToken.data}`;
-                  console.log("[Push] Got native token:", token);
+                  // Native tokens don't work with Expo Push API, skip them
+                  console.warn("[Push] Got native token but it won't work with Expo Push API");
                 } catch (nativeErr: any) {
-                  console.warn("[Push] Native token failed:", nativeErr?.message);
+                  console.warn("[Push] Native token also failed:", nativeErr?.message);
                 }
               }
             } else {
               console.log("[Push] Permission not granted, status:", finalStatus);
+              // Request permissions again with explanation
+              console.log("[Push] Will retry on next app open");
             }
           } else {
-            console.log("[Push] Not a physical device");
+            console.log("[Push] Not a physical device - skipping push registration");
+            return; // Don't retry on emulator
           }
         } catch (err: any) {
           console.warn(`[Push] Attempt ${attempt} error:`, err?.message);
@@ -110,17 +109,23 @@ export function PushNotificationRegistrar() {
 
         // If still no token, wait before retrying
         if (!token && attempt < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
+          await new Promise(resolve => setTimeout(resolve, 3000 * attempt));
         }
       }
 
-      // Use fallback token if all attempts failed
+      // IMPORTANT: Only register REAL tokens, never fallback tokens
       if (!token) {
-        token = `device_${deviceId}_${Date.now()}`;
-        console.log("[Push] Using fallback device token:", token);
+        console.warn("[Push] Could not get a real push token after all attempts. Will retry on next app open.");
+        return; // Don't register anything - will try again next time
       }
 
-      // Send token to server using direct fetch (more reliable than tRPC)
+      // Verify it's a real Expo token
+      if (!token.startsWith('ExponentPushToken[') && !token.startsWith('ExpoPushToken[')) {
+        console.warn("[Push] Token is not a valid Expo push token, skipping:", token.substring(0, 30));
+        return;
+      }
+
+      // Send real token to server
       await sendTokenToServer(token);
     }
 
@@ -128,7 +133,6 @@ export function PushNotificationRegistrar() {
       const baseUrl = getApiBaseUrl();
       const url = `${baseUrl}/api/trpc/pushTokens.register`;
 
-      // Build payload - only include fields with real values
       const payload: Record<string, any> = {
         token,
         isAdmin: isAdminLoggedIn || false,
@@ -136,7 +140,7 @@ export function PushNotificationRegistrar() {
       if (deviceId) payload.deviceId = deviceId;
       if (customerId && customerId > 0) payload.customerId = customerId;
 
-      console.log("[Push] Sending token to server:", url, JSON.stringify(payload));
+      console.log("[Push] Sending REAL token to server:", token.substring(0, 30) + "...");
 
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
@@ -147,8 +151,7 @@ export function PushNotificationRegistrar() {
           });
 
           if (response.ok) {
-            const data = await response.json();
-            console.log("[Push] \u2705 Token registered successfully on attempt", attempt);
+            console.log("[Push] \u2705 Real token registered successfully!");
             return;
           } else {
             const errorText = await response.text();
@@ -158,7 +161,6 @@ export function PushNotificationRegistrar() {
           console.warn(`[Push] Fetch attempt ${attempt} failed:`, fetchErr?.message);
         }
 
-        // Wait before retry
         if (attempt < 3) {
           await new Promise(resolve => setTimeout(resolve, 2000 * attempt));
         }
@@ -177,25 +179,27 @@ export function PushNotificationRegistrar() {
     if (Platform.OS === "web") return;
     if (!deviceId) return;
     if (!customerId || customerId <= 0) return;
-    if (!hasRegistered.current) return;
 
-    // Update the server with the new customerId
     async function updateRegistration() {
       const baseUrl = getApiBaseUrl();
       const url = `${baseUrl}/api/trpc/pushTokens.register`;
 
-      // We need a token - try to get the current one or use fallback
-      let token: string;
+      // Only re-register with a REAL token
+      let token: string | null = null;
       try {
         if (Device.isDevice) {
           const projectId = Constants.expoConfig?.extra?.eas?.projectId || "6391fb6e-21f2-4b17-8a4a-bef58f930e77";
           const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
           token = tokenData.data;
-        } else {
-          token = `device_${deviceId}_reregister`;
         }
       } catch {
-        token = `device_${deviceId}_reregister`;
+        console.warn("[Push] Could not get token for re-registration");
+        return; // Don't re-register without a real token
+      }
+
+      if (!token || (!token.startsWith('ExponentPushToken[') && !token.startsWith('ExpoPushToken['))) {
+        console.warn("[Push] No valid token for re-registration, skipping");
+        return;
       }
 
       const payload: Record<string, any> = {

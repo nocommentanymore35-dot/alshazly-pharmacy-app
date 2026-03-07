@@ -749,8 +749,34 @@ export async function changeAdminPassword(username: string, currentPassword: str
 export async function registerPushToken(token: string, deviceId?: string, customerId?: number, isAdmin: boolean = false) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+  
+  // If this is a real Expo push token and we have a deviceId, delete any fallback tokens for this device
+  if (token.startsWith('ExponentPushToken[') || token.startsWith('ExpoPushToken[')) {
+    if (deviceId) {
+      // Delete fallback token for this device
+      const fallbackToken = `device_${deviceId}`;
+      await db.delete(pushTokens).where(eq(pushTokens.token, fallbackToken)).catch(() => {});
+    }
+    if (customerId) {
+      // Delete any fallback tokens for this customer
+      const customerTokens = await db.select({ token: pushTokens.token }).from(pushTokens).where(eq(pushTokens.customerId, customerId));
+      for (const ct of customerTokens) {
+        if (ct.token.startsWith('device_')) {
+          await db.delete(pushTokens).where(eq(pushTokens.token, ct.token)).catch(() => {});
+        }
+      }
+    }
+  }
+  
+  // Don't register fallback tokens
+  if (token.startsWith('device_')) {
+    console.log(`[Push] Skipping fallback token registration: ${token}`);
+    return;
+  }
+  
   await db.insert(pushTokens).values({ token, deviceId: deviceId ?? null, customerId: customerId ?? null, isAdmin })
     .onDuplicateKeyUpdate({ set: { deviceId: deviceId ?? null, customerId: customerId ?? null, isAdmin, updatedAt: new Date() } });
+  console.log(`[Push] Registered real token: ${token.substring(0, 30)}...`);
 }
 
 export async function getAdminPushTokens(): Promise<string[]> {
@@ -787,6 +813,22 @@ export async function getCustomerOnlyPushTokens(): Promise<string[]> {
   if (!db) return [];
   const results = await db.select({ token: pushTokens.token }).from(pushTokens).where(eq(pushTokens.isAdmin, false));
   return results.map(r => r.token);
+}
+
+// Cleanup all fallback tokens from database
+export async function cleanupFallbackTokens(): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const allTokens = await db.select({ token: pushTokens.token }).from(pushTokens);
+  let cleaned = 0;
+  for (const t of allTokens) {
+    if (t.token.startsWith('device_') || (!t.token.startsWith('ExponentPushToken[') && !t.token.startsWith('ExpoPushToken['))) {
+      await db.delete(pushTokens).where(eq(pushTokens.token, t.token));
+      cleaned++;
+    }
+  }
+  console.log(`[Push] Cleaned up ${cleaned} invalid tokens`);
+  return cleaned;
 }
 
 // Get push token count

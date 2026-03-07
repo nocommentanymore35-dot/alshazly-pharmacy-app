@@ -136,17 +136,8 @@ export const appRouter = router({
       .input(z.object({ deviceId: z.string() }))
       .mutation(async ({ input }) => {
         const customer = await db.getOrCreateCustomer(input.deviceId);
-        // Auto-register a push token placeholder for this device so it appears in admin panel
-        try {
-          const fallbackToken = `device_${input.deviceId}`;
-          await db.registerPushToken(fallbackToken, input.deviceId, customer.id, false);
-          console.log(`[Push] Auto-registered fallback token for device ${input.deviceId}, customer ${customer.id}`);
-        } catch (e) {
-          // Ignore duplicate key errors - token already registered
-          if (!e?.message?.includes('Duplicate')) {
-            console.warn('[Push] Auto-register failed:', e?.message);
-          }
-        }
+        // Note: Push token will be registered by PushNotificationRegistrar when the real Expo token is obtained
+        console.log(`[Push] Customer ${customer.id} created/found for device ${input.deviceId}. Waiting for real push token registration.`);
         return customer;
       }),
     update: publicProcedure
@@ -355,6 +346,10 @@ export const appRouter = router({
       const real = all.filter(t => t.startsWith('ExponentPushToken[') || t.startsWith('ExpoPushToken['));
       const fallback = all.filter(t => !t.startsWith('ExponentPushToken[') && !t.startsWith('ExpoPushToken['));
       return { total: all.length, realTokens: real.length, fallbackTokens: fallback.length, tokens: all.map(t => t.substring(0, 40) + (t.length > 40 ? '...' : '')) };
+    }),
+    cleanup: publicProcedure.mutation(async () => {
+      const cleaned = await db.cleanupFallbackTokens();
+      return { success: true, cleaned, message: `تم تنظيف ${cleaned} توكن وهمي من قاعدة البيانات` };
     }),
     sendBroadcast: publicProcedure
       .input(z.object({
