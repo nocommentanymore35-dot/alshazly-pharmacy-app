@@ -21,7 +21,7 @@ export default function MedicineDetailScreen() {
   const toastOpacity = useState(() => new RNAnimated.Value(0))[0];
   const insets = useSafeAreaInsets();
 
-  const medicineQuery = trpc.medicines.byId.useQuery({ id: parseInt(id) });
+  const medicineQuery = trpc.medicines.byId.useQuery({ id: parseInt(id) }, { refetchOnMount: "always", staleTime: 0 });
   const medicine = medicineQuery.data;
   const { state: { customerId } } = useAppStore();
   
