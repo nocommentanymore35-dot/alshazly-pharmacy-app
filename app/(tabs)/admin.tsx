@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text, View, TextInput, ScrollView, Alert, ActivityIndicator,
-  FlatList, StyleSheet, Platform, Linking, Vibration,
+  FlatList, StyleSheet, Platform, Linking,
 } from "react-native";
 import { Image } from "expo-image";
-import { Audio } from "expo-av";
-import * as Haptics from "expo-haptics";
 import * as SecureStore from "expo-secure-store";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAppStore } from "@/lib/store";
@@ -16,7 +14,7 @@ import ImagePickerButton from "@/components/ImagePickerButton";
 
 const ADMIN_CREDENTIALS_KEY = "admin_credentials";
 
-type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "notifications" | "stockAlerts" | "settings";
+type AdminTab = "orders" | "medicines" | "categories" | "banners" | "reports" | "customers" | "stockAlerts" | "settings";
 
 // Helper: check if image URL is broken (old local URL that no longer exists)
 function isBrokenImageUrl(url: string | null | undefined): boolean {
@@ -51,23 +49,40 @@ export default function AdminScreen() {
   useEffect(() => {
     const autoLogin = async () => {
       try {
+        // انتظار قليل حتى يتم تهيئة الاتصال بالسيرفر
+        await new Promise(resolve => setTimeout(resolve, 500));
         const saved = await SecureStore.getItemAsync(ADMIN_CREDENTIALS_KEY);
         if (saved) {
-          const { username: savedUser, password: savedPass } = JSON.parse(saved);
-          setUsername(savedUser);
-          setPassword(savedPass);
-          // محاولة تسجيل الدخول تلقائياً
-          const result = await loginMutation.mutateAsync({ username: savedUser, password: savedPass });
-          if (result) {
-            setAdminLoggedIn(true);
-          } else {
-            // البيانات المحفوظة لم تعد صحيحة
-            await SecureStore.deleteItemAsync(ADMIN_CREDENTIALS_KEY);
-            setUsername("");
-            setPassword("");
+          const parsed = JSON.parse(saved);
+          const savedUser = parsed.username;
+          const savedPass = parsed.password;
+          if (savedUser && savedPass) {
+            setUsername(savedUser);
+            setPassword(savedPass);
+            // محاولة تسجيل الدخول تلقائياً مع إعادة المحاولة
+            for (let attempt = 0; attempt < 3; attempt++) {
+              try {
+                const result = await loginMutation.mutateAsync({ username: savedUser, password: savedPass });
+                if (result) {
+                  setAdminLoggedIn(true);
+                  setAutoLogging(false);
+                  return;
+                } else {
+                  // البيانات المحفوظة لم تعد صحيحة
+                  await SecureStore.deleteItemAsync(ADMIN_CREDENTIALS_KEY);
+                  setUsername("");
+                  setPassword("");
+                  break;
+                }
+              } catch (loginErr) {
+                console.log(`[AutoLogin] Attempt ${attempt + 1} failed:`, loginErr);
+                if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+              }
+            }
           }
         }
       } catch (e) {
+        console.log("[AutoLogin] Error:", e);
         // تجاهل الخطأ - المستخدم سيدخل يدوياً
       }
       setAutoLogging(false);
@@ -206,7 +221,6 @@ export default function AdminScreen() {
             { key: "banners", label: "الإعلانات", icon: "campaign" },
             { key: "reports", label: "التقارير", icon: "bar-chart" },
             { key: "customers", label: "العملاء", icon: "people" },
-            { key: "notifications", label: "الإشعارات", icon: "notifications" },
             { key: "stockAlerts", label: "طلبات التوفر", icon: "notification-important" },
             { key: "settings", label: "الإعدادات", icon: "settings" },
           ].map((tab) => (
@@ -232,7 +246,6 @@ export default function AdminScreen() {
           {activeTab === "banners" && <BannersManagement />}
           {activeTab === "reports" && <ReportsView />}
           {activeTab === "customers" && <CustomersManagement />}
-          {activeTab === "notifications" && <NotificationsManagement />}
           {activeTab === "stockAlerts" && <StockAlertsManagement />}
           {activeTab === "settings" && <SettingsManagement />}
         </View>
@@ -243,69 +256,8 @@ export default function AdminScreen() {
 
 // ===== Orders Management =====
 function OrdersManagement() {
-  const ordersQuery = trpc.orders.listAll.useQuery(undefined, { refetchInterval: 10000 });
+  const ordersQuery = trpc.orders.listAll.useQuery(undefined, { refetchInterval: 5000 });
   const updateStatusMutation = trpc.orders.updateStatus.useMutation();
-  const previousOrderCountRef = useRef<number | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
-
-  // Play loud alert sound and vibrate when new order arrives
-  const playNewOrderAlert = useCallback(async () => {
-    try {
-      // Strong vibration pattern - 3 long bursts
-      Vibration.vibrate([0, 1000, 200, 1000, 200, 1000], false);
-      
-      // Also use Haptics for extra feedback
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      
-      // Play alert sound at max volume
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-        playsInSilentModeIOS: true,
-        staysActiveInBackground: true,
-        shouldDuckAndroid: false,
-      });
-      
-      // Play sound twice for emphasis
-      for (let i = 0; i < 2; i++) {
-        if (soundRef.current) {
-          await soundRef.current.unloadAsync();
-        }
-        const { sound } = await Audio.Sound.createAsync(
-          require("@/assets/sounds/alert.mp3"),
-          { volume: 1.0, shouldPlay: true }
-        );
-        soundRef.current = sound;
-        await new Promise(resolve => setTimeout(resolve, 1500));
-      }
-      
-      // Show alert dialog
-      Alert.alert("🔔 طلب جديد!", "تم استلام طلب جديد، يرجى مراجعته الآن");
-    } catch (error) {
-      console.log("Alert sound error:", error);
-      // Fallback: just show alert
-      Alert.alert("🔔 طلب جديد!", "تم استلام طلب جديد، يرجى مراجعته الآن");
-    }
-  }, []);
-
-  // Detect new orders
-  useEffect(() => {
-    if (ordersQuery.data) {
-      const currentCount = ordersQuery.data.length;
-      if (previousOrderCountRef.current !== null && currentCount > previousOrderCountRef.current) {
-        playNewOrderAlert();
-      }
-      previousOrderCountRef.current = currentCount;
-    }
-  }, [ordersQuery.data, playNewOrderAlert]);
-
-  // Cleanup sound on unmount
-  useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.unloadAsync();
-      }
-    };
-  }, []);
   const deleteOrderMutation = trpc.orders.delete.useMutation();
   const orders = ordersQuery.data ?? [];
 
@@ -989,173 +941,6 @@ function CustomersManagement() {
         ))
       )}
       <View style={{ height: 100 }} />
-    </ScrollView>
-  );
-}
-
-// ===== Notifications Management =====
-function NotificationsManagement() {
-  const [notifTitle, setNotifTitle] = useState('');
-  const [notifBody, setNotifBody] = useState('');
-  const [notifTarget, setNotifTarget] = useState<'all' | 'customers' | 'admin'>('customers');
-  const [sending, setSending] = useState(false);
-  const [lastResult, setLastResult] = useState<string | null>(null);
-
-  const sendBroadcastMutation = trpc.pushTokens.sendBroadcast.useMutation();
-  const tokenCountQuery = trpc.pushTokens.count.useQuery();
-
-  const handleSend = async () => {
-    if (!notifTitle.trim() || !notifBody.trim()) {
-      Alert.alert('خطأ', 'يرجى إدخال عنوان ومحتوى الإشعار');
-      return;
-    }
-    Alert.alert(
-      'تأكيد الإرسال',
-      `هل تريد إرسال هذا الإشعار إلى ${notifTarget === 'all' ? 'الجميع' : notifTarget === 'customers' ? 'العملاء فقط' : 'الإدارة فقط'}?`,
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'إرسال',
-          onPress: async () => {
-            setSending(true);
-            setLastResult(null);
-            try {
-              const result = await sendBroadcastMutation.mutateAsync({
-                title: notifTitle.trim(),
-                body: notifBody.trim(),
-                target: notifTarget,
-              });
-              setLastResult(result.message);
-              if (result.success) {
-                setNotifTitle('');
-                setNotifBody('');
-                Alert.alert('نجاح', result.message);
-              } else {
-                Alert.alert('تنبيه', result.message);
-              }
-            } catch (e: any) {
-              Alert.alert('خطأ', e.message || 'فشل إرسال الإشعار');
-            }
-            setSending(false);
-          },
-        },
-      ]
-    );
-  };
-
-  const targetOptions = [
-    { key: 'customers' as const, label: 'العملاء فقط', icon: 'people' },
-    { key: 'all' as const, label: 'الجميع', icon: 'public' },
-    { key: 'admin' as const, label: 'الإدارة', icon: 'admin-panel-settings' },
-  ];
-
-  return (
-    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, gap: 12 }}>
-      {/* Device Count */}
-      <View style={{ backgroundColor: '#EFF6FF', borderRadius: 10, padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <MaterialIcons name="devices" size={24} color="#2563EB" />
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>الأجهزة المسجلة</Text>
-          {tokenCountQuery.data ? (
-            <>
-              <Text style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
-                الإجمالي: {tokenCountQuery.data.total} | العملاء: {tokenCountQuery.data.customers} | الإدارة: {tokenCountQuery.data.admin}
-              </Text>
-              {tokenCountQuery.data.total === 0 && (
-                <Text style={{ fontSize: 11, color: '#DC2626', marginTop: 4 }}>
-                  لم يتم تسجيل أجهزة بعد. يجب أن يفتح العميل التطبيق ويوافق على إذن الإشعارات ليتم تسجيل جهازه.
-                </Text>
-              )}
-            </>
-          ) : (
-            <ActivityIndicator size="small" />
-          )}
-        </View>
-      </View>
-
-      {/* Target Selection */}
-      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>إرسال إلى:</Text>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        {targetOptions.map((opt) => (
-          <Pressable
-            key={opt.key}
-            onPress={() => setNotifTarget(opt.key)}
-            style={{
-              flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-              gap: 4, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5,
-              borderColor: notifTarget === opt.key ? '#2563EB' : '#E5E7EB',
-              backgroundColor: notifTarget === opt.key ? '#EFF6FF' : '#fff',
-            }}
-          >
-            <MaterialIcons name={opt.icon as any} size={16} color={notifTarget === opt.key ? '#2563EB' : '#6B7280'} />
-            <Text style={{ fontSize: 12, fontWeight: '600', color: notifTarget === opt.key ? '#2563EB' : '#6B7280' }}>{opt.label}</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      {/* Notification Title */}
-      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>عنوان الإشعار:</Text>
-      <TextInput
-        value={notifTitle}
-        onChangeText={setNotifTitle}
-        placeholder="مثل: عرض خاص اليوم!"
-        style={{
-          borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8,
-          padding: 12, fontSize: 14, backgroundColor: '#fff', textAlign: 'right',
-        }}
-      />
-
-      {/* Notification Body */}
-      <Text style={{ fontSize: 14, fontWeight: 'bold', color: '#1F2937' }}>محتوى الإشعار:</Text>
-      <TextInput
-        value={notifBody}
-        onChangeText={setNotifBody}
-        placeholder="اكتب نص الإشعار هنا..."
-        multiline
-        numberOfLines={4}
-        style={{
-          borderWidth: 1, borderColor: '#D1D5DB', borderRadius: 8,
-          padding: 12, fontSize: 14, backgroundColor: '#fff', textAlign: 'right',
-          minHeight: 100, textAlignVertical: 'top',
-        }}
-      />
-
-      {/* Send Button */}
-      <Pressable
-        onPress={handleSend}
-        disabled={sending}
-        style={({ pressed }) => [{
-          backgroundColor: sending ? '#93C5FD' : '#2563EB',
-          borderRadius: 10, paddingVertical: 14, flexDirection: 'row',
-          alignItems: 'center', justifyContent: 'center', gap: 8,
-        }, pressed && { opacity: 0.8 }]}
-      >
-        {sending ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <>
-            <MaterialIcons name="send" size={20} color="#fff" />
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>إرسال الإشعار</Text>
-          </>
-        )}
-      </Pressable>
-
-      {/* Last Result */}
-      {lastResult && (
-        <View style={{ backgroundColor: '#F0FDF4', borderRadius: 8, padding: 12, borderWidth: 1, borderColor: '#BBF7D0' }}>
-          <Text style={{ fontSize: 13, color: '#166534', textAlign: 'center' }}>{lastResult}</Text>
-        </View>
-      )}
-
-      {/* Tips */}
-      <View style={{ backgroundColor: '#FFF7ED', borderRadius: 10, padding: 14, marginTop: 8, borderWidth: 1, borderColor: '#FED7AA' }}>
-        <Text style={{ fontSize: 13, fontWeight: 'bold', color: '#9A3412', marginBottom: 6 }}>نصائح:</Text>
-        <Text style={{ fontSize: 12, color: '#9A3412', lineHeight: 20 }}>
-          • الإشعار يظهر على هواتف العملاء حتى لو التطبيق مغلق{"\n"}
-          • استخدم عناوين قصيرة وجذابة{"\n"}
-          • لا ترسل إشعارات كثيرة حتى لا يقوم العملاء بإيقافها
-        </Text>
-      </View>
     </ScrollView>
   );
 }
