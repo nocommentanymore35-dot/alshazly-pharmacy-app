@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Text, View, TextInput, ScrollView, Alert, ActivityIndicator,
-  FlatList, StyleSheet, Platform, Linking,
+  FlatList, StyleSheet, Platform, Linking, Vibration,
 } from "react-native";
 import { Image } from "expo-image";
+import { Audio } from "expo-av";
+import * as Haptics from "expo-haptics";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAppStore } from "@/lib/store";
 import { trpc } from "@/lib/trpc";
@@ -186,6 +188,67 @@ export default function AdminScreen() {
 function OrdersManagement() {
   const ordersQuery = trpc.orders.listAll.useQuery(undefined, { refetchInterval: 10000 });
   const updateStatusMutation = trpc.orders.updateStatus.useMutation();
+  const previousOrderCountRef = useRef<number | null>(null);
+  const soundRef = useRef<Audio.Sound | null>(null);
+
+  // Play loud alert sound and vibrate when new order arrives
+  const playNewOrderAlert = useCallback(async () => {
+    try {
+      // Strong vibration pattern - 3 long bursts
+      Vibration.vibrate([0, 1000, 200, 1000, 200, 1000], false);
+      
+      // Also use Haptics for extra feedback
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      
+      // Play alert sound at max volume
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        staysActiveInBackground: true,
+        shouldDuckAndroid: false,
+      });
+      
+      // Play sound twice for emphasis
+      for (let i = 0; i < 2; i++) {
+        if (soundRef.current) {
+          await soundRef.current.unloadAsync();
+        }
+        const { sound } = await Audio.Sound.createAsync(
+          require("@/assets/sounds/alert.mp3"),
+          { volume: 1.0, shouldPlay: true }
+        );
+        soundRef.current = sound;
+        await new Promise(resolve => setTimeout(resolve, 1500));
+      }
+      
+      // Show alert dialog
+      Alert.alert("🔔 طلب جديد!", "تم استلام طلب جديد، يرجى مراجعته الآن");
+    } catch (error) {
+      console.log("Alert sound error:", error);
+      // Fallback: just show alert
+      Alert.alert("🔔 طلب جديد!", "تم استلام طلب جديد، يرجى مراجعته الآن");
+    }
+  }, []);
+
+  // Detect new orders
+  useEffect(() => {
+    if (ordersQuery.data) {
+      const currentCount = ordersQuery.data.length;
+      if (previousOrderCountRef.current !== null && currentCount > previousOrderCountRef.current) {
+        playNewOrderAlert();
+      }
+      previousOrderCountRef.current = currentCount;
+    }
+  }, [ordersQuery.data, playNewOrderAlert]);
+
+  // Cleanup sound on unmount
+  useEffect(() => {
+    return () => {
+      if (soundRef.current) {
+        soundRef.current.unloadAsync();
+      }
+    };
+  }, []);
   const deleteOrderMutation = trpc.orders.delete.useMutation();
   const orders = ordersQuery.data ?? [];
 
