@@ -11,7 +11,8 @@ import * as ClipboardExpo from "expo-clipboard";
 export default function CheckoutScreen() {
   const router = useRouter();
   const { state, clearCart, cartTotal, addLoyaltyPoints } = useAppStore();
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "vodafone_cash">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "vodafone_cash" | "">("" );
+  const paymentSectionY = useRef<number>(0);
   const [submitting, setSubmitting] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -133,7 +134,7 @@ export default function CheckoutScreen() {
           </View>
 
           {/* Payment Method */}
-          <View style={styles.section}>
+          <View style={styles.section} onLayout={(e) => { paymentSectionY.current = e.nativeEvent.layout.y; }}>
             <Text style={styles.paymentMethodTitle}>إختار طريقة الدفع</Text>
 
             <Pressable
@@ -223,16 +224,29 @@ export default function CheckoutScreen() {
         {/* Submit Button */}
         <View style={styles.bottomBar}>
           <Pressable
-            onPress={handleSubmitOrder}
+            onPress={() => {
+              if (!paymentMethod) {
+                // لم يختر طريقة الدفع - تمرير تلقائي لإظهار خيارات الدفع
+                scrollViewRef.current?.scrollTo({ y: paymentSectionY.current, animated: true });
+                return;
+              }
+              handleSubmitOrder();
+            }}
             disabled={submitting}
-            style={({ pressed }) => [styles.submitBtn, pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] }]}
+            style={({ pressed }) => [
+              styles.submitBtn,
+              !paymentMethod && styles.submitBtnDisabled,
+              pressed && { opacity: 0.9, transform: [{ scale: 0.97 }] },
+            ]}
           >
             {submitting ? (
               <ActivityIndicator size="small" color="#fff" />
             ) : (
               <>
-                <MaterialIcons name="check-circle" size={22} color="#fff" />
-                <Text style={styles.submitText}>تأكيد الطلب - {cartTotal().toFixed(2)} ج.م</Text>
+                <MaterialIcons name={paymentMethod ? "check-circle" : "arrow-upward"} size={22} color="#fff" />
+                <Text style={styles.submitText}>
+                  {paymentMethod ? `تأكيد الطلب - ${cartTotal().toFixed(2)} ج.م` : "اختر طريقة الدفع أولاً"}
+                </Text>
               </>
             )}
           </Pressable>
@@ -297,6 +311,9 @@ const styles = StyleSheet.create({
   submitBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     backgroundColor: "#2563EB", borderRadius: 12, paddingVertical: 16, gap: 8,
+  },
+  submitBtnDisabled: {
+    backgroundColor: "#9CA3AF",
   },
   submitText: { color: "#fff", fontSize: 17, fontWeight: "bold" },
   vodafoneInfo: {
