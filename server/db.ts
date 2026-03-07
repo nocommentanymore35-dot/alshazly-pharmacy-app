@@ -28,17 +28,17 @@ async function runAutoMigrations(db: ReturnType<typeof drizzle>) {
     // Add stripsPerBox column to order_items if not exists
     await db.execute(sql`ALTER TABLE order_items ADD COLUMN stripsPerBox INT DEFAULT 1`).catch(() => {});
     
-    // تحويل المخزون من علب إلى شرائط (مرة واحدة فقط)
-    // نتحقق إذا تم التحويل مسبقاً عبر setting
-    const converted = await db.select().from(appSettings).where(eq(appSettings.settingKey, 'stock_converted_to_strips')).limit(1).catch(() => []);
-    if (!converted || converted.length === 0) {
-      // تحويل: stock الحالي (بالعلب) × strips (عدد الشرائط بالعلبة) = المخزون الجديد بالشرائط
-      await db.execute(sql`UPDATE medicines SET stock = stock * strips WHERE strips > 1 AND stock > 0`).catch(() => {});
-      // تسجيل أن التحويل تم
-      await db.insert(appSettings).values({ settingKey: 'stock_converted_to_strips', settingValue: 'true' })
-        .onDuplicateKeyUpdate({ set: { settingValue: 'true' } }).catch(() => {});
-      console.log("[Database] Stock converted from boxes to strips");
+    // تصحيح: المخزون تضاعف مرتين، نقسمه على strips مرة واحدة لإعادته للقيمة الصحيحة
+    const fixApplied = await db.select().from(appSettings).where(eq(appSettings.settingKey, 'stock_fix_v2')).limit(1).catch(() => []);
+    if (!fixApplied || fixApplied.length === 0) {
+      // المخزون تضاعف (ضرب مرتين)، نقسم على strips مرة واحدة للتصحيح
+      await db.execute(sql`UPDATE medicines SET stock = FLOOR(stock / strips) WHERE strips > 1 AND stock > 0`).catch(() => {});
+      await db.insert(appSettings).values({ settingKey: 'stock_fix_v2', settingValue: 'done' })
+        .onDuplicateKeyUpdate({ set: { settingValue: 'done' } }).catch(() => {});
+      console.log("[Database] Stock fix applied - divided by strips once");
     }
+    
+    // المخزون الآن مخزّن بالشرائط الإجمالية (لا حاجة لتحويل إضافي)
     
     console.log("[Database] Auto-migration check completed");
   } catch (e) {
