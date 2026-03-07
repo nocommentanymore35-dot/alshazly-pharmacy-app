@@ -116,7 +116,14 @@ export default function HomeScreen() {
           borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2,
         }}>
           <Text style={{ fontSize: 8, color: "#fff", fontWeight: "bold" }}>
-            {(item.stock ?? 0) > 0 ? "متوفر" : "نفد"}
+            {(item.stock ?? 0) > 0 ? (() => {
+              const s = item.stock ?? 0;
+              const sp = item.strips ?? 1;
+              if (sp <= 1) return `متوفر: ${s} علبة`;
+              const b = Math.floor(s / sp);
+              const r = s % sp;
+              return `متوفر: ${b > 0 && r > 0 ? `${b} علبة+${r} شريط` : b > 0 ? `${b} علبة` : `${r} شريط`}`;
+            })() : "نفد"}
           </Text>
         </View>
       </View>

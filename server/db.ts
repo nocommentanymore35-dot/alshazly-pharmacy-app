@@ -1050,6 +1050,7 @@ export async function getAllStockAlertsWithDetails() {
     medicineName: medicines.nameAr,
     medicineNameEn: medicines.nameEn,
     medicineStock: medicines.stock,
+    medicineStrips: medicines.strips,
   })
   .from(stockAlerts)
   .innerJoin(customers, eq(stockAlerts.customerId, customers.id))

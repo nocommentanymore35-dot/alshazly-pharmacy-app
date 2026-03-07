@@ -967,13 +967,14 @@ function StockAlertsManagement() {
   const alerts = alertsQuery.data ?? [];
 
   // Group alerts by medicine
-  const groupedAlerts: Record<number, { medicineName: string; medicineNameEn: string; medicineStock: number; customers: { id: number; name: string | null; phone: string | null; address: string | null; date: string }[] }> = {};
+  const groupedAlerts: Record<number, { medicineName: string; medicineNameEn: string; medicineStock: number; medicineStrips: number; customers: { id: number; name: string | null; phone: string | null; address: string | null; date: string }[] }> = {};
   alerts.forEach((alert: any) => {
     if (!groupedAlerts[alert.medicineId]) {
       groupedAlerts[alert.medicineId] = {
         medicineName: alert.medicineName,
         medicineNameEn: alert.medicineNameEn,
         medicineStock: alert.medicineStock ?? 0,
+        medicineStrips: alert.medicineStrips ?? 1,
         customers: [],
       };
     }
@@ -1017,7 +1018,7 @@ function StockAlertsManagement() {
                 </View>
                 <View style={{ backgroundColor: group.medicineStock > 0 ? '#DEF7EC' : '#FEE2E2', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 }}>
                   <Text style={{ fontSize: 11, fontWeight: '600', color: group.medicineStock > 0 ? '#03543F' : '#DC2626' }}>
-                    {group.medicineStock > 0 ? `متوفر (${group.medicineStock})` : 'غير متوفر'}
+                    {group.medicineStock > 0 ? (() => { const sp = group.medicineStrips ?? 1; if (sp <= 1) return `متوفر (${group.medicineStock} علبة)`; const b = Math.floor(group.medicineStock / sp); const r = group.medicineStock % sp; return `متوفر (${b > 0 && r > 0 ? `${b} علبة + ${r} شريط` : b > 0 ? `${b} علبة` : `${r} شريط`})`; })() : 'غير متوفر'}
                   </Text>
                 </View>
               </View>
