@@ -496,7 +496,7 @@ function MedicinesManagement() {
             ))}
           </ScrollView>
 
-          <TextInput style={styles.formInput} placeholder="المخزون *" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
+          <TextInput style={styles.formInput} placeholder="المخزون (إجمالي الشرائط) *" value={stock} onChangeText={setStock} keyboardType="number-pad" placeholderTextColor="#9CA3AF" />
           {/* Image Upload Section */}
           <ImagePickerButton
             currentImageUrl={imageUrl}
@@ -532,7 +532,7 @@ function MedicinesManagement() {
             <View style={{ flex: 1 }}>
               <Text style={styles.adminCardTitle}>{med.nameAr}</Text>
               <Text style={styles.adminCardSubtitle}>{med.nameEn}</Text>
-              <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط: {med.strips ?? 1} | مخزون: {med.stock}</Text>
+              <Text style={{ fontSize: 12, color: "#6B7280" }}>شرائط/علبة: {med.strips ?? 1} | مخزون: {(() => { const s = med.stock ?? 0; const sp = med.strips ?? 1; if (sp <= 1) return `${s} علبة`; const b = Math.floor(s / sp); const r = s % sp; return b > 0 && r > 0 ? `${b} علبة + ${r} شريط` : b > 0 ? `${b} علبة` : r > 0 ? `${r} شريط` : 'صفر'; })()}</Text>
               {isBrokenImageUrl(med.imageUrl) && (
                 <Text style={{ fontSize: 10, color: "#DC2626", marginTop: 2 }}>⚠ الصورة مفقودة - اضغط تعديل لإعادة رفعها</Text>
               )}

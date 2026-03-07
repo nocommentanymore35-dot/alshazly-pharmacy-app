@@ -27,6 +27,19 @@ async function runAutoMigrations(db: ReturnType<typeof drizzle>) {
     await db.execute(sql`ALTER TABLE order_items ADD COLUMN unitType VARCHAR(10) DEFAULT 'box'`).catch(() => {});
     // Add stripsPerBox column to order_items if not exists
     await db.execute(sql`ALTER TABLE order_items ADD COLUMN stripsPerBox INT DEFAULT 1`).catch(() => {});
+    
+    // تحويل المخزون من علب إلى شرائط (مرة واحدة فقط)
+    // نتحقق إذا تم التحويل مسبقاً عبر setting
+    const converted = await db.select().from(appSettings).where(eq(appSettings.settingKey, 'stock_converted_to_strips')).limit(1).catch(() => []);
+    if (!converted || converted.length === 0) {
+      // تحويل: stock الحالي (بالعلب) × strips (عدد الشرائط بالعلبة) = المخزون الجديد بالشرائط
+      await db.execute(sql`UPDATE medicines SET stock = stock * strips WHERE strips > 1 AND stock > 0`).catch(() => {});
+      // تسجيل أن التحويل تم
+      await db.insert(appSettings).values({ settingKey: 'stock_converted_to_strips', settingValue: 'true' })
+        .onDuplicateKeyUpdate({ set: { settingValue: 'true' } }).catch(() => {});
+      console.log("[Database] Stock converted from boxes to strips");
+    }
+    
     console.log("[Database] Auto-migration check completed");
   } catch (e) {
     console.warn("[Database] Auto-migration skipped:", e);
@@ -486,17 +499,22 @@ export async function validateOrderStock(items: { medicineId: number; medicineNa
     if (med.length === 0) {
       errors.push(`الصنف "${item.medicineName}" غير موجود`);
     } else if (med[0].stock !== null && med[0].stock !== undefined) {
-      // حساب الكمية المطلوبة بالعلب
-      let requiredBoxes = item.quantity;
-      if (item.unitType === "strip" && item.stripsPerBox && item.stripsPerBox > 0) {
-        requiredBoxes = Math.ceil(item.quantity / item.stripsPerBox);
+      // المخزون مخزّن بالشرائط الإجمالية
+      const availableStrips = med[0].stock; // عدد الشرائط المتاحة
+      let requiredStrips = item.quantity;
+      if (item.unitType === "box" && item.stripsPerBox && item.stripsPerBox > 0) {
+        requiredStrips = item.quantity * item.stripsPerBox;
       }
-      if (med[0].stock < requiredBoxes) {
-        if (med[0].stock === 0) {
+      if (availableStrips < requiredStrips) {
+        if (availableStrips === 0) {
           errors.push(`الصنف "${item.medicineName}" غير متوفر حالياً`);
         } else {
+          const stripsPerBox = med[0].strips ?? 1;
+          const boxes = Math.floor(availableStrips / stripsPerBox);
+          const remainStrips = availableStrips % stripsPerBox;
+          const availableText = boxes > 0 && remainStrips > 0 ? `${boxes} علبة و ${remainStrips} شريط` : boxes > 0 ? `${boxes} علبة` : `${remainStrips} شريط`;
           const unitLabel = item.unitType === "strip" ? "شريط" : "علبة";
-          errors.push(`الصنف "${item.medicineName}" - الكمية المطلوبة (${item.quantity} ${unitLabel}) أكبر من المتوفر (${med[0].stock} علبة)`);
+          errors.push(`الصنف "${item.medicineName}" - الكمية المطلوبة (${item.quantity} ${unitLabel}) أكبر من المتوفر (${availableText})`);
         }
       }
     }

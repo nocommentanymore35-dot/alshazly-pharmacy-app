@@ -204,14 +204,13 @@ export const appRouter = router({
         }
         const orderId = await db.createOrder(orderData, items.map(i => ({ ...i, orderId: 0 })));
         try {
-          // حساب الكمية بالعلب لخصم المخزون بشكل صحيح
+          // خصم المخزون بالشرائط: شريط=خصم الكمية مباشرة، علبة=خصم الكمية × عدد الشرائط بالعلبة
           const stockDeductions = items.map(i => {
-            let boxQuantity = i.quantity;
-            if (i.unitType === "strip" && i.stripsPerBox > 0) {
-              // تحويل الشرائط إلى علب (مع التقريب لأعلى)
-              boxQuantity = Math.ceil(i.quantity / i.stripsPerBox);
+            let stripQuantity = i.quantity;
+            if (i.unitType === "box" && i.stripsPerBox > 0) {
+              stripQuantity = i.quantity * i.stripsPerBox;
             }
-            return { medicineId: i.medicineId, quantity: boxQuantity };
+            return { medicineId: i.medicineId, quantity: stripQuantity };
           });
           await db.deductStock(stockDeductions);
         } catch (e) { console.warn("Failed to deduct stock:", e); }

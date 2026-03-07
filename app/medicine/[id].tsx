@@ -88,9 +88,19 @@ export default function MedicineDetailScreen() {
   const totalPrice = currentUnitPrice * quantity;
 
   const isOutOfStock = (medicine.stock ?? 0) <= 0;
+  // المخزون مخزّن بالشرائط الإجمالية
+  const totalStrips = medicine.stock ?? 0;
   // حساب أقصى كمية يمكن طلبها حسب نوع الوحدة
-  const stockCount = medicine.stock ?? 0;
-  const maxQuantity = unitType === "strip" ? stockCount * stripsPerBox : stockCount;
+  const maxQuantity = unitType === "strip" ? totalStrips : Math.floor(totalStrips / stripsPerBox);
+  // عرض المخزون كـ X علبة + Y شريط
+  const stockBoxes = Math.floor(totalStrips / stripsPerBox);
+  const stockRemainStrips = totalStrips % stripsPerBox;
+  const stockDisplayText = stripsPerBox > 1
+    ? (stockBoxes > 0 && stockRemainStrips > 0 ? `${stockBoxes} علبة + ${stockRemainStrips} شريط`
+      : stockBoxes > 0 ? `${stockBoxes} علبة`
+      : stockRemainStrips > 0 ? `${stockRemainStrips} شريط`
+      : "غير متوفر")
+    : `${totalStrips} علبة`;
 
   const handleAddToCart = () => {
     if (isOutOfStock) {
@@ -177,7 +187,7 @@ export default function MedicineDetailScreen() {
             }}>
               <MaterialIcons name={(medicine.stock ?? 0) > 0 ? "check-circle" : "cancel"} size={14} color="#fff" />
               <Text style={{ fontSize: 12, color: "#fff", fontWeight: "bold" }}>
-                {(medicine.stock ?? 0) > 0 ? "متوفر" : "غير متوفر"}
+                {isOutOfStock ? "غير متوفر" : `متوفر: ${stockDisplayText}`}
               </Text>
             </View>
           </Animated.View>
@@ -297,7 +307,7 @@ export default function MedicineDetailScreen() {
               {getUnitLabel(unitType, quantity)}
             </Text>
             <Text style={{ fontSize: 11, color: "#6B7280", textAlign: "center" }}>
-              (الحد الأقصى: {maxQuantity})
+              (الحد الأقصى: {maxQuantity} {unitType === "strip" ? "شريط" : "علبة"})
             </Text>
           </View>
 
